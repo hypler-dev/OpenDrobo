@@ -1,0 +1,149 @@
+[
+  {
+    "name": "Drobo5DArtwork.icns",
+    "source": "artifacts/vendor/dashboard-expanded/trusteddatascsidriver.pkg/Payload/Library/Extensions/TrustedDataSCSIDriver.kext/Contents/Resources/5D-TB.icns",
+    "sha256": "608d43cc57abf65d094b03aa808e5dad38ebe5d7420b6c75eaf565b5066ecaa6",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboOriginalApp.icns",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/DefaultIcon.icns",
+    "sha256": "f00d1834b97e0d11956689adc7a7a57ee595767d4284c12a3f3ead084a253886",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-all_devices.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/all_devices.png",
+    "sha256": "7e395546d19f6ff7dc89d8659f470f954d822e858128ba2719905feaefff9dad",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-all_devicesA.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/all_devicesA.png",
+    "sha256": "0f0451bfb5fdde96fd5745ca2ad189790871fa0ce1d64004fc4b922e82dc43ec",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-status.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/status.png",
+    "sha256": "b13fff38e312d3447d22b62bd7c5b0969368af99adaf1beaedf7c2b758719a6c",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-statusA.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/statusA.png",
+    "sha256": "d8bb0e3c88764a3f0342989ab03d4f5875a41ef442f2a68fb91e30af09cee90f",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-capacity.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/capacity.png",
+    "sha256": "2d41dd798d902104ae079ff533687681dcaab77174e341f4c93015e3fbd6781f",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-capacityA.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/capacityA.png",
+    "sha256": "44e42a267774582cd828180011fc96dee5fb8baed9489cd16a59faebca2ba993",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-shares_volumes.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/shares_volumes.png",
+    "sha256": "b0255afa344b9f1ee0e2d5cbc7dfaeaf001e435098ddadd53b4f943b23beadee",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-shares_volumes_active.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/shares_volumes_active.png",
+    "sha256": "eb84386fb16db91a02ce81c708964c170ba9da59997e8cdc01a02d507baaae5a",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-tools.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/tools.png",
+    "sha256": "f811162c96da290746b1cb5edb79f7b044688b8ddbd5059a9067de1eec8979f5",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-toolsA.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/toolsA.png",
+    "sha256": "a5dbc6aef36e7dca4ad139238249e6b80b5623d9c79ba185b9a737d88c6dbfbf",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-settings.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/settings.png",
+    "sha256": "bcc28c7e7131580449c23bb0de102df0e5191944ab89655605a7f92d5dfd46e6",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-settingsA.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/settingsA.png",
+    "sha256": "5d85cb55a04453203833aaaabadbeab3e1d9dc1485744f1ce58902917e81ae5a",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-prefs.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/prefs.png",
+    "sha256": "ddf5a284b6982eb1ee395f0419bbc4fa838f7adbfd18222a222dfb3eaeb2ee10",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-prefsA.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/prefsA.png",
+    "sha256": "0b64e7482e32f51ff1e7bf8db954f5f7456d5fd84f88f005da732bff02c1f5e9",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-help.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/help.png",
+    "sha256": "0ac77a4fc939e35caaef4a5c9157c396f9479d97428d2e9407fe08e3b9eeac7a",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNav-helpA.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/Icons/Navigation/helpA.png",
+    "sha256": "1e561c9a5882dfdee1b42bd5638eedfe1efe7dab750822f6d4f7a0ff242cb67b",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboLogo.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/TitleBar/drobo_logo@2x.png",
+    "sha256": "2316914844ab6d93ec2b9848ce183b944ff1c194ecb6bfbe9f283ca8c08ad98f",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboDASArtwork.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/MainPanel/direct_attached.png",
+    "sha256": "ef8152951ca37c9f14376ab4bac57710edec64da311019c3c6d52822cd17edf9",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboNASArtwork.png",
+    "source": "artifacts/vendor/dashboard-expanded/droboDashboard.pkg/Payload/Applications/Drobo Dashboard.app/Contents/Resources/Styles/Default/MainPanel/NAS.png",
+    "sha256": "e78b724d788b788a22da6dd449096b236809ec91de4f897e740b307758b70517",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  }
+]

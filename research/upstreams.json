@@ -1,0 +1,42 @@
+[
+  {
+    "repository": "morluto/rea",
+    "commit": "71f680d7c1aa7a45ba0325fe87b104744b0c105f",
+    "committed_at": "2026-11-04T20:30:52Z",
+    "url": "https://github.com/morluto/rea/commit/71f680d7c1aa7a45ba0325fe87b104744b0c105f",
+    "archive": "artifacts/vendor/rea-71f680d7c1aa7a45ba0325fe87b104744b0c105f.tar.gz",
+    "source_directory": "tools/rea",
+    "archive_url": "https://codeload.github.com/morluto/rea/tar.gz/71f680d7c1aa7a45ba0325fe87b104744b0c105f",
+    "sha256": "52851165bc96fb8c29b5f5be6d689be0ef6c3dcf74d5ec5c40f2165f23c03e28"
+  },
+  {
+    "repository": "fetzu/ReDrobo",
+    "commit": "b1955430d7c69dfc120fbae07969aa651655f5c5",
+    "committed_at": "2026-09-21T19:14:17Z",
+    "url": "https://github.com/fetzu/ReDrobo/commit/b1955430d7c69dfc120fbae07969aa651655f5c5",
+    "archive": "artifacts/vendor/ReDrobo-b1955430d7c69dfc120fbae07969aa651655f5c5.tar.gz",
+    "source_directory": "third_party/ReDrobo",
+    "archive_url": "https://codeload.github.com/fetzu/ReDrobo/tar.gz/b1955430d7c69dfc120fbae07969aa651655f5c5",
+    "sha256": "d1bc18f479597cba687949faff17b52c001b227288f8c43abb5d70d8a5b26533"
+  },
+  {
+    "repository": "petersilva/drobo-utils",
+    "commit": "fd4ff89bf8bd953075bd60defb81750297d4b4f9",
+    "committed_at": "2025-10-21T00:52:12Z",
+    "url": "https://github.com/petersilva/drobo-utils/commit/fd4ff89bf8bd953075bd60defb81750297d4b4f9",
+    "archive": "artifacts/vendor/drobo-utils-fd4ff89bf8bd953075bd60defb81750297d4b4f9.tar.gz",
+    "source_directory": "third_party/drobo-utils",
+    "archive_url": "https://codeload.github.com/petersilva/drobo-utils/tar.gz/fd4ff89bf8bd953075bd60defb81750297d4b4f9",
+    "sha256": "6a462a1bbfa636043c633ca7fb87e4db87a9936d72e60aaf57fb4d36b713707f"
+  },
+  {
+    "repository": "ringo380/DroboBridge",
+    "commit": "68f600e331036427558d62a35975fbcf1570f918",
+    "committed_at": "2026-01-31T07:23:02Z",
+    "url": "https://github.com/ringo380/DroboBridge/commit/68f600e331036427558d62a35975fbcf1570f918",
+    "archive": "artifacts/vendor/DroboBridge-68f600e331036427558d62a35975fbcf1570f918.tar.gz",
+    "source_directory": "third_party/DroboBridge",
+    "archive_url": "https://codeload.github.com/ringo380/DroboBridge/tar.gz/68f600e331036427558d62a35975fbcf1570f918",
+    "sha256": "3eb4f7f8018f9367f156afa0a25304d05f5a8a101dea48b5b32cf865907712c0"
+  }
+]

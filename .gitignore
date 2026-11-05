@@ -1,0 +1,6 @@
+artifacts/
+dist/
+tools/
+third_party/
+__pycache__/
+.DS_Store
