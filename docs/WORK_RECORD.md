@@ -1,106 +1,74 @@
 # OpenDrobo work record
 
-Last updated: November 5, 2026. This file is the canonical status and acceptance record.
+Last updated: November 5, 2026. This is the canonical status and acceptance record.
 
-## Authority and intended result
+## Accepted intent
 
-The user's current request authorizes local analysis of the original Drobo software, use of REA, a native macOS/Apple silicon application, an independent project repository, the original Dashboard layout with glass/transparency/RGB selection effects, original artwork in the local build, and an update source pointing to this project's latest GitHub release. The longer-term objective is an independent, open BeyondRAID implementation.
+The user authorized an independent OpenDrobo application with the original Dashboard interaction model, modern macOS/Apple silicon support, a Rust core, a shared Tauri UI, and offline reverse engineering of the original service, driver, and firmware. The user also authorized publication of the latest source updates to the public `hypler-dev/OpenDrobo` repository. Long-term scope includes BeyondRAID recovery and Linux/Windows adapters.
 
-The user explicitly requested a new GitHub repository. `hypler-dev/OpenDrobo` was created public. No app release, firmware release, or hardware compatibility certification is authorized by passing tests alone.
+The former third-party application dependency has been removed. No external parser checkout or copied parser is part of the build. Original binaries, firmware, extracted artwork, and REA/Ghidra output remain ignored local research artifacts with recorded provenance. New parser code comes from direct analysis of the original vendor software.
 
-The user also requested Linux/Windows support as a direction. The capability record now describes a portable core, separate OS transport adapters, and platform frontends. This extends the roadmap; it does not establish Linux/Windows builds or hardware compatibility.
+## Current implementation
 
-The user subsequently directed removal of the previously included third-party application dependency and its README references. This means removing its derived parser, fixtures, acquisition/build integration, and bundled notice together. The current app must build from this repository's own application source without an external checkout; it does not ship a replacement protocol parser.
+- `crates/opendrobo-core`: portable Rust capacity decoder and validation C ABI.
+- `desktop/`: shared Tauri 2 TypeScript/CSS interface with original-style navigation, dark glass surfaces, animated selection glow, empty states, and release lookup.
+- `desktop/src-tauri/`: Rust commands for registry discovery, bounded read-only capacity calls, raw hexadecimal lab capture, and scoped GitHub release checks.
+- `platform/macos/transport/`: C bridge for original user-client ABI. Query is open → LUN page 4 → capacity page 2 → close; no arbitrary or write commands.
+- `platform/macos/fskit/`: Swift FSKit read-only separate-view module with path/inode binding, held descriptors, directory enumeration, and conservative symlink confinement.
 
-The next accepted slice targets actual protected capacity in macOS/Finder as well as OpenDrobo. The user clarified that the displayed 64 TB is the virtual ceiling. Reading ordinary filesystem totals is therefore insufficient. [Capacity reporting](CAPACITY_REPORTING.md) owns the direct vendor-record recovery, isolated decoder/statistics prototype, and future filesystem-view gates. Existing disk/volume geometry remains untouched.
+The native source intentionally passes `byteUnitsConfirmed: false`. Injected FSKit tests exercise a positive confirmed record, but live provider statistics remain unavailable until hardware evidence exists. The older `macos/` SwiftUI app and `experiments/capacity/` Swift prototype remain reference code; `make build` uses the Rust/Tauri application.
 
-The isolated `experiments/capacity` prototype now has a newly written capacity-page decoder and FSKit statistics adapter, based directly on original service/firmware analysis. Its 91 checks pass on Apple silicon, including the 64 TB ceiling distinction, all supported-page truncations, unknown scope/units, sliced input, and record expiry before statistics construction. It is not linked into the app, creates no filesystem mount, and does not change current Finder reporting.
+The macOS bridge depends on the original Drobo management driver already being loaded. It does not replace the Thunderbolt PCI/DMA or DriverKit storage driver. Linux and Windows currently have shared source direction only; neither target has been built or tested here.
 
-Producer: task `/root/capacity_prototype` using `gpt_worker`, with controller integration and bounds/expiry fixes. Fresh task `/root/capacity_review` using `gpt_reviewer` returned PASS with no actionable P1/P2/P3 findings. Full `make check` passes 25 Python tests, 25 app-policy assertions, and 91 isolated capacity assertions. Receipts: `artifacts/reports/capacity/validation.json` and `validation.log`, plus `artifacts/reports/capacity-checks.log`. All 16 local documentation links validate, and `git diff --check` passes. Native application source and its previously validated bundle are unchanged; no app rebuild, filesystem mount, driver/extension activation, home-Mac access, disk writes, or release occurred in this capacity slice. Live capacity transport and a complete filesystem module remain the next implementation gates.
+## Capacity truth
 
-## Current scope
+Recovered protected-capacity fields are documented in [CAPACITY_REPORTING.md](CAPACITY_REPORTING.md), with the recovered call structure in [MACOS_MANAGEMENT_ABI.md](../research/MACOS_MANAGEMENT_ABI.md). Device byte units are **not hardware-verified**. Live decoding therefore reports unavailable; raw capture is evidence collection only. No model profile currently enables byte reporting.
 
-- Build and launch a native macOS 26 universal app with original-style navigation and truthful empty/unavailable states.
-- Provide local registry discovery and a latest-stable-release lookup for `hypler-dev/OpenDrobo`.
-- Preserve original software/firmware locally, record hashes, and inspect them offline with REA/Ghidra.
-- Produce reproducible TDIH/ELF inventory tooling and a bounded next research slice.
-- Extend static Thunderbolt/production storage analysis and distinguish legacy networking from proposed host-agent management.
-- Apply the user's darker transparent UI correction, faded original product lineup, blended section/card surfaces, and animated perimeter selection effects.
+The FSKit view does not override an existing Apple HFS+ mount or change disk geometry. The extension is compiled and directly checked, but has not been activated, mounted, or validated in Finder. Its nonthrowing statistics callback returns zeroed fields when information is unavailable; those zeros are not a measured empty pack. The user believes the home volume uses HFS+, but this has not been confirmed. No home-Mac access or attached-device command occurred in this workspace.
 
-Current work does not install drivers, mount or format a Drobo volume, flash firmware, manipulate a disk pack, replace BeyondRAID, or access the home Mac. Spare hardware availability is not an instruction to erase unspecified drives.
+## Validation and packaging
 
-## Acceptance evidence
+`make check` passed all 15 named lanes: 25 Python firmware/archive tests, 16 Rust core tests, 1 Tauri backend policy test, 25 legacy Swift policy assertions, 91 historical capacity-prototype assertions, formatting/build checks, native transport ASAN/UBSAN mocks, warning-clean C syntax, and FSKit typecheck/direct checks. After the final icon-rendering adjustment, frontend typechecking and production asset compilation passed again. These are software checks, not hardware or Finder proof.
 
-| Item | Evidence / current result |
-| --- | --- |
-| Original software acquired | Vendor DMG SHA-256 recorded in research findings |
-| Original UI inspected | Original app reached All Drobos and Dashboard Preferences locally |
-| Native app build | Universal arm64/x86_64 binary built; Apple silicon launch observed |
-| Original-style app UI | OpenDrobo All Drobos and Dashboard Preferences observed through accessibility and screenshot |
-| GitHub release lookup | Check Now returned “No app releases have been published yet.” |
-| Glass/RGB/artwork update | Native build passes; default All Drobos/preferences render and AX states verified; original glyph padding and sidebar shift corrected |
-| Protocol parsing | No protocol parser is shipped; the previous derived parser and its fixture/suite have been removed |
-| App/policy checks | 25 independent Swift assertions pass: PCI IDs/byte order, SCSI registry identity, versions, and release links |
-| Python checks | 25 tests pass: archive boundaries, TDIH CRC/length validation, ELF tables/programs/symbols, and byte-exact extraction |
-| App signature/package | `codesign --verify --strict` passes; ad-hoc local build only, not notarized |
-| Final command-line discovery | `--scan-json` returned an empty list on the local Mac; no device commands sent |
-| Firmware containers | 5D/5D3 length, header CRC, and body CRC match |
-| Embedded storage application | Both images extracted/inventoried; 10,598 / 10,628 named symbols |
-| REA native analysis | Ghidra 12.1.4 provider healthy; original Thunderbolt initializer, on-disk-index signature validator, and Configure function decompiled |
-| Follow-up static recovery | Driver handshake/channels/power paths, index getters/load/version paths, production RMR validation/CRC, and address maps inspected; selected constants/paths assembly corroborated; see `research/STATIC_RECOVERY.md` |
-| Network/community scope | Legacy NAS capability matrix and attributed community backlog recorded in `docs/CAPABILITIES_AND_BACKLOG.md`; host agent proposed only |
-| Dark/blended UI follow-up | Universal `make build` and signature verification pass; full-panel Preferences and Help screenshots observed; Status/Capacity/Volumes/Tools/Settings navigation checked; source-reviewed shared surfaces cover all sections |
+`make build` passed and produced the local ARM64 debug preview at `dist/OpenDrobo.app`. It embeds the inactive FSKit extension under `Contents/Extensions`, includes optional ignored local artwork, and ad-hoc signs the nested extension and host. Strict signature verification passed for both, and for the app extracted from its ZIP with `ditto`. The initial misplaced entitlements-file packaging failure was corrected before this final package. No installer, activation, notarization, public binary upload, or release occurred.
 
-Protocol and synthetic-status assertions from the initial checkpoint belong to the removed dependency. They are not current application coverage or evidence of live management support.
+Final archive: `dist/OpenDrobo-0.2.0-preview-macos-arm64.zip`. SHA-256: `180547f9311a62fcf70d2d122e4e37b46e20a82cba3f5cea4eb6c8a3d72d65b1`.
 
-## Ownership and review
+The controller observed a clean quit and final-bundle relaunch on macOS 26/Apple silicon. The 1120 × 800 render showed readable original navigation glyphs, dark glass panels, the faded product lineup, and RGB borders confined to their controls. List selection, registry refresh, unavailable management sections, and the Preferences panel were checked. Automatic release checks remained off; manual Check Now progressed through its disabled busy state to “No app releases have been published yet.” The empty local scan returned `{platform, devices, message}` with no devices. Invalid raw-capture arguments returned the expected errors before device access. Runtime OS Reduce Motion/Transparency settings were not changed, and no performance benchmark was run.
 
-The controller owns architecture, scope, external state, research, source acquisition, updates, integration, validation, and release judgment. A bounded `gpt_worker` produced the native UI; the controller applied final integration fixes. Initial review identified protocol-status and PCI-byte-order gaps, while archive/ELF/extraction coverage was added. The current source no longer includes that protocol parser or its checks. Independent UI review corrected a hardcoded reduced-transparency flag on segment glow.
+Local receipts:
 
-Rendered UI evidence was collected by the controller and supplied to the independent UI reviewer. That reviewer did not independently operate the application. OS Reduce Transparency and Reduce Motion toggles were not manually changed; their source guards were reviewed. No attached-device, Intel-execution, or home-Mac compatibility proof is claimed.
+- `artifacts/reports/desktop-checks/results.json` and its 15 lane logs.
+- `artifacts/reports/desktop-build.log` and `desktop-build.json`.
+- `artifacts/reports/desktop-validation.json` and `desktop-ui-observations.json`.
+- Original analysis receipts under `artifacts/reports/capacity` and `artifacts/reports/transport`.
 
-The darker follow-up was produced by the same bounded UI worker in `macos/ContentView.swift`, with controller integration. Agent task `/root/glass_ui_review`, using the `gpt_ui_review` role, found an opaque fallback covering its own color blend; the controller corrected the background composition. Rendered Preferences exposed a content-width seam; the controller moved full-panel sizing before the shared background. Both corrections received fresh source review with no remaining findings. The controller observed the final Preferences/Help render and navigated all remaining management sections through CUA. This is representative rendered verification plus shared-surface source coverage, not a claim that every OS accessibility setting or hardware state was exercised.
+The controller owns architecture, native transport/backend integration, validation, and publication judgment. Producer tasks `rust_core`, `tauri_frontend`, and `fskit_module` used the native OpenAI `gpt_worker` role. Fresh `module_review` and `native_review` used `gpt_reviewer`; `shared_ui_review` used `gpt_ui_review`. All returned PASS after their findings were resolved. Fixes included explicit unit gating, binding before/after capture and root opening, root-path replacement checks, confined symlinks, lifecycle serialization, nontrapping directory verifiers, overlap-safe C ABI decoding, cross-platform bundle targets, and UI busy states. UI review used controller-supplied rendered observations plus independent source review; the reviewer did not operate the GUI.
 
-The pre-removal UI build ZIP SHA-256 was `920d5c4366e7eabfb2bd5238d5c5f9ab267ad4c2ca05e2fa83e4e428e2c5047b`. Its receipts are `artifacts/reports/round2/full-panel-blends-build.log`, `final-validation.json`, and `ui-render-observations.json`. These prove that earlier styling build, not the subsequent dependency-free bundle. Final removal-slice validation supersedes them. No performance benchmark was run.
+The worker and reviewer TOMLs configure OpenAI `gpt-5.6-terra`; `architecture_docs` used `gpt_docs`, configured as `gpt-5.6-luna`. Actual runtime model IDs are not exposed, so configuration pins are not represented as observed runtime identities. No GLM, Spark, Hermes, Gemma, or Mac mini model was used.
 
-The removal slice was produced by agent task `/root/remove_dependency` using the `gpt_worker` role, with controller changes to independent SCSI registry matching, identity checks, metadata, and documentation. `make check` passes 25 Python tests and 25 independent Swift assertions. `make build` succeeds with the removed source checkout absent and compiles only `ContentView.swift`, `LocalDiscovery.swift`, `PreviewApp.swift`, and `ReleaseUpdater.swift`. The resulting binary contains arm64 and x86_64; strict ad-hoc signature verification passes. The bundle and ZIP contain no removed dependency names/notices, and the bundle metadata has no upstream-source field. Final ZIP SHA-256: `b138886d185224d74578371dc53c35fea35d00ea13a20d9daf561f22492b4ff5`.
+## Source checkpoint
 
-Receipts: `artifacts/reports/round2/independent-commands.json`, `independent-check.log`, `independent-build.log`, and `independent-validation.json`. Command-line discovery returns an empty list. The controller closed the earlier app, observed it stopped, launched the new bundle, and verified All Drobos accessibility state plus the Preferences dark/blended render. No device was attached. The independent registry predicate uses facts from the original vendor personality file, recorded in `original-scsi-identities.json`; generic legacy TRUSTED mass-storage names are excluded pending stronger identity evidence, so older devices may require additional matching work.
+This slice changes the root Cargo workspace and build entry points, `crates/opendrobo-core`, `desktop`, `platform/macos`, the management-ABI research note, and the four architecture/status documents. The optional Swift reference build now has a separate output and bundle identity. Original vendor assets, generated artwork/schema directories, dependencies, toolchains, and build products remain ignored. There was no unrelated working-tree dirt.
 
-Fresh agent task `/root/dependency_review`, using the `gpt_reviewer` role, reviewed the removal, local-only build/check paths, identity policy and tests, documentation, and final receipts. It returned PASS with no actionable P1/P2/P3 findings. The controller accepts this bounded source checkpoint; hardware and platform compatibility gates remain open.
+The previous published checkpoint was `2f07c14ab72d1e4783aa6d9a0c3e310371086bdb`. This record's containing commit identifies the new source checkpoint and exact changed paths. Confirm publication by comparing `git rev-parse HEAD` with `git ls-remote origin refs/heads/main`; the closeout records that result. No tag, app release, deployment, driver installation, extension activation, filesystem mount, disk write, or firmware operation is part of this checkpoint.
 
-Agent task `/root/recovery_review`, using the `gpt_reviewer` role, independently reviewed the research/capability notes and status changes. Missing signature-literal, service-architecture, and build/validation receipts were supplied and reviewer role/task attribution was clarified. Final review returned PASS with no actionable P1/P2/P3 findings, including a separate follow-up on the Linux/Windows roadmap. All 24 original artwork manifest entries match their local source hashes and local bundle entries; the images remain ignored. Documentation link checks and `git diff --check` pass.
+## Open gates
 
-The local role TOMLs pin worker/reviewer roles to `gpt-5.6-terra` on OpenAI. Actual provider runtime IDs are not exposed by the agents, so configuration pins are not represented as independently observed runtime identities. No GLM, Spark, Hermes, Gemma, or Mac mini model was invoked.
+Hardware proof remains open: exact enclosure model, home macOS version, filesystem, adapter chain, LUN count, byte units, Finder statistics, disconnect behavior, and multiple-LUN policy. BeyondRAID reconstruction remains research-only. Network management remains proposed authenticated host agent. No firmware, restart, shutdown, format, rebuild, array mutation, disk erase, or home-Mac operation is authorized by source checks.
 
-## Source and artifact boundaries
+## Next safe slice
 
-New source lives in `macos`, `scripts`, `tests`, and `research`; licenses, build instructions, and this record are included. Original installers, firmware, driver binaries, extracted artwork, REA/Ghidra/JDK/Node runtimes, decompilation outputs, and build products are ignored under `artifacts`, `third_party`, `tools`, and `dist`.
-
-Artwork provenance is recorded, but redistribution rights have not been verified. Source-only public builds use native fallback artwork. Local app bundles may include the explicitly requested extracted originals.
-
-There was no pre-existing Git repository or unrelated work in this folder. Local `main` and remote `origin` now exist. The initial reviewed source checkpoint is `4419efadecd2c1566e35036cc11c7d47e9604736`. Later source changes are identified by their containing commits. Check `git log -1`, remote `main`, and the task closeout for publication receipts. No tag or app/firmware release has been published.
-
-The follow-up changes the native UI, build/check entry points, registry identity matching, research/capability notes, provenance manifest, and README/work record. It removes the derived protocol parser, unused synthetic fixture, source-acquisition script, bundled third-party notice, and corresponding dependency pin. The containing commit gives the exact changed-path list.
-
-The user reaffirmed GitHub repository creation as “Open Drobo.” The existing public `hypler-dev/OpenDrobo` repository was verified through the configured GitHub CLI and reused. No duplicate repository or update-source rename was introduced.
-
-Removed dependency source/archive and old check executables were moved out of active paths into ignored `artifacts/retired-dependencies` for research provenance. They are not build inputs or public source files. Existing Git history remains intact; no attribution was erased from retained derived code, because the derived code itself was removed.
-
-## Limits and next action
-
-The app currently discovers metadata and checks releases. Thunderbolt management/storage transport and the BeyondRAID data engine remain unimplemented. No hardware behavior is inferred from an empty local scan. Exact enclosure model and home macOS version still need identification before hardware testing.
-
-Next: establish serialized RMR boundaries and header/buffer pointer relationships, then validate metadata generations and CRC against known member images. Prepare a separate spare-unit plan identifying the exact enclosure, disks, imaging destination, and permitted changes before destructive experiments. The native glass/artwork app is a launch/discovery preview; it is not hardware management or an array implementation. Remote home-Mac management remains a proposed authenticated agent, not a running service.
+Use spare hardware for read-only identity and capacity captures, image and hash member disks, validate units and pool scope, then test FSKit mount/statistics/Finder agreement. Record each model and OS separately from software-only validation. Keep release publication closed until hardware evidence and independent review pass.
 
 ## Continuation
 
 ```text
 Repo: OpenDrobo; start with pwd, git branch --show-current, git rev-parse HEAD, git status --short --branch.
-Read: README.md -> docs/WORK_RECORD.md -> research/REVERSE_ENGINEERING.md.
-Truth: native preview only; vendor/firmware/decompiler artifacts local; no Thunderbolt or BeyondRAID implementation.
-Scope: original-style glass/RGB UI, latest GitHub release lookup, offline original-system analysis.
-Do not: access home Mac, install drivers, flash, format, mutate disk packs, or publish vendor artifacts.
-Validate: make check; make build; native launch and update/empty/error states; fresh independent review.
-Ledger: docs/WORK_RECORD.md; local receipts artifacts/reports; repo https://github.com/hypler-dev/OpenDrobo.
+Read: README.md -> docs/WORK_RECORD.md -> docs/CAPACITY_REPORTING.md -> research/MACOS_MANAGEMENT_ABI.md -> research/STATIC_RECOVERY.md.
+Truth: Rust/Tauri source plus macOS read-only bridge; original driver required; no hardware/Finder proof.
+Scope: transport framing, capacity-unit lab evidence, FSKit read-only view, BeyondRAID static recovery.
+Do not: access home Mac, install/activate drivers or extensions, mount, flash, format, erase, mutate arrays, or publish vendor artifacts.
+Validate: make check; make build; fresh native/module review; hardware tests only on named spare plan.
+Ledger: docs/WORK_RECORD.md; artifacts/reports; https://github.com/hypler-dev/OpenDrobo.
 ```

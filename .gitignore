@@ -4,3 +4,8 @@ tools/
 third_party/
 __pycache__/
 .DS_Store
+target/
+node_modules/
+desktop/dist/
+desktop/public/local-artwork/
+desktop/src-tauri/gen/

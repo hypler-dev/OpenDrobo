@@ -1,9 +1,10 @@
-.PHONY: check build
+.PHONY: check build build-swift-reference
 
 check:
-	python3 -m unittest discover -s tests
-	python3 scripts/check_preview.py
-	python3 scripts/check_capacity.py
+	python3 scripts/check_desktop.py
 
 build:
+	python3 scripts/build_desktop.py
+
+build-swift-reference:
 	python3 scripts/build_preview.py

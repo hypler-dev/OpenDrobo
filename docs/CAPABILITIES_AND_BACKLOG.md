@@ -1,29 +1,38 @@
-# Platform support, network management, and improvements
+# Platform capabilities and backlog
 
-Research date: November 4, 2026. This records legacy capabilities and proposed OpenDrobo work. It does not claim those capabilities are implemented. Current app behavior is in [the work record](WORK_RECORD.md).
+This document separates recovered historical behavior from OpenDrobo behavior. It does not claim hardware compatibility.
 
-## Linux and Windows direction
+## Current architecture
 
-Linux and Windows are intended targets alongside macOS. They are not supported builds today. The existing app imports AppKit, SwiftUI, and IOKit and builds only a macOS 26 universal binary. [Swift supports Linux and Windows](https://www.swift.org/platform-support/); [Apple's SwiftUI](https://developer.apple.com/swiftui/) targets Apple platforms. Language portability does not make this complete application portable.
+| Surface | Current state |
+| --- | --- |
+| Shared UI | Tauri 2 interface in `desktop/`, dark glass styling, RGB selection glow, optional local artwork |
+| Portable core | Rust `crates/opendrobo-core`, pure capacity decoding and validation with C ABI |
+| macOS transport | C bridge to original loaded Drobo management driver; bounded read-only MODE SENSE path only |
+| macOS filesystem | Swift FSKit extension source and direct checks; separate read-only view, not installed or mounted |
+| Linux / Windows | Shared UI/core direction only; device transport, filesystem adapter, packaging, and hardware tests pending |
+| BeyondRAID | Static recovery and research only; no reader, writer, or mount implementation |
+| Network management | Proposed authenticated host agent; no service, port, or home-Mac connection exists |
 
-The proposed first step is to implement byte parsing, status interpretation, metadata validation, and eventual read-only BeyondRAID block mapping in a portable core. That core must accept byte buffers or read-only image providers and return records/errors without importing UI, registry, driver, or filesystem-mount APIs. Swift is a candidate because the current app uses it, subject to actual Linux/Windows builds and shared fixture tests. A language change is not required by the current evidence. No device-protocol parser ships in the app today.
+Original driver remains prerequisite for current macOS transport. Replacement Thunderbolt PCI/DMA or DriverKit storage driver is separate research project.
 
-| Surface | macOS today | Linux / Windows path |
-| --- | --- | --- |
-| Desktop interface | Native dark/glass SwiftUI preview | Separate frontend or portable shell; reproduce the visual design with platform-appropriate effects. Apple glass APIs are not a portable dependency |
-| Offline firmware inventory | Python tools tested locally | Candidate portable tooling; run archive/ELF tests on each target before claiming support |
-| Device protocol records | Registry discovery only; no protocol parser or management transport | Implement shared pure record parsing; keep platform discovery and command adapters separate |
-| USB management | Unimplemented in this app | Linux SCSI-generic and Windows SCSI pass-through are candidate OS facilities; require a compatible model, exposed device path, permissions, and verified commands |
-| NAS management | Proposed only | Shared network-protocol implementation after framing/authentication are recovered; test each NAS model/firmware |
-| Remote view of home-Mac Drobo | Proposed authenticated agent | A Windows/Linux client could consume verified agent records without a local Thunderbolt driver; home Mac must remain online |
-| Direct Thunderbolt storage | Original driver under static study; no replacement | Separate PCI/DMA/SCSI transport work on each OS; enumerating a Thunderbolt device is not storage or management support |
-| BeyondRAID recovery from member images | Static findings; no reader yet | Portable read-only block mapper and identical known-image tests on all targets; filesystem interpretation/mounting remains a separate layer |
+## Management backlog
+
+1. Validate byte units and model identity on named spare enclosure with read-only captures.
+2. Add reviewed per-model capability profile only after repeated captures agree with known geometry.
+3. Complete FSKit mount, unmount, disconnect, and Finder comparison tests on spare unit; keep HFS+ geometry unchanged.
+4. Add authenticated home-Mac read-only status agent only after pairing, credential, retention, and exposure design is accepted.
+5. Implement Linux SCSI-generic and Windows SCSI pass-through adapters behind same Rust contracts, separating software tests from hardware claims.
+6. Recover BeyondRAID metadata generations, CRC rules, and block mapping from known member images before recovery UI.
+7. Keep firmware, restart, shutdown, format, rebuild, and array writes closed until operation-specific safety and rollback tests exist.
+
+Legacy NAS features such as DHCP/static addressing, users, shares, permissions, and alerts belong to model-specific network adapters. Do not infer them for Thunderbolt DAS.
+
+## Platform interface references
 
 The [Linux kernel SCSI-generic documentation](https://www.kernel.org/doc/html/latest/scsi/scsi-generic.html) and [Microsoft SCSI pass-through documentation](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddscsi/ni-ntddscsi-ioctl_scsi_pass_through) establish available OS interfaces, not Drobo compatibility. Modern USB variants may differ. The original [drobo-utils README](https://github.com/petersilva/drobo-utils/blob/main/README.rst) documents older Linux/model paths, later protocol gaps, broken diagnostics/firmware features, and lack of current hardware testing. It is useful reference evidence, not a compatibility certificate. Its GPL code has not been copied into this MIT project.
 
 The historical [5D3 vendor user guide](https://content.etilize.com/User-Manual/1040150862.pdf) includes Windows Dashboard installation and USB/Thunderbolt interfaces; it does not prove that OpenDrobo or every connection works on a current Windows release. The user's exact enclosure remains unidentified.
-
-Delivery order: portable parser/core plus fixture CLI, target-OS builds/tests, USB/NAS or authenticated host-agent status, platform frontends, then separately validated direct Thunderbolt transports. Any new CI matrix must label software tests separately from hardware compatibility. No Linux or Windows runner, binary, driver, installer, or hardware test was added in this slice.
 
 ## Legacy capabilities depend on model
 
@@ -50,7 +59,7 @@ Static `DDService64d` inspection found OpenSSL-related symbols. This does not es
 4. **Multiple hosts and NAS adapters:** one device inventory with per-model capability reporting. NAS settings/users/shares remain separate from Thunderbolt transport.
 5. **Management writes:** only after read paths and response semantics are verified on the named spare enclosure. Restart, shutdown, settings, firmware, formatting, and array changes need operation-specific safeguards and validation.
 
-These are proposed slices, not promised delivery dates. The current app only performs local registry discovery and optional GitHub release checks. No home-Mac access, service installation, network port exposure, hardware command, or remote telemetry was introduced by this work.
+These are proposed slices, not promised delivery dates. The current app provides registry discovery, optional GitHub release checks, and an explicit bounded read-only capacity query through the original management driver. This workspace has no attached enclosure, so no device command was submitted here. No home-Mac access, service installation, network port exposure, or remote telemetry was introduced.
 
 ## Community evidence and corresponding work
 

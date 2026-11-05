@@ -1,72 +1,54 @@
-# Truthful capacity reporting in macOS and Finder
+# Capacity reporting in macOS and Finder
 
-Date: November 5, 2026. Accepted intent: report the installed pack's real protected usable/used/free capacity in OpenDrobo **and macOS/Finder**, rather than treating the virtual 64 TB volume ceiling as installed storage. This file owns the capacity-reporting slice; the main [work record](WORK_RECORD.md) owns overall status.
+Date: November 5, 2026. Goal: report protected usable, used, and free capacity instead of repeating Drobo's virtual 64 TB ceiling.
 
-Current result: original capacity fields recovered, independent decoder/statistics prototype compiled, and 91 offline checks passed on the local Apple silicon Mac. **Finder reporting is unchanged.** A live capacity transport and complete filesystem module are not implemented by this slice.
+## Current result
 
-## Why reading the OS total does not solve it
+Original service and firmware records are recovered. Portable Rust decoder, native read-only transport bridge, and macOS FSKit read-only view are implemented and directly checked. **Physical byte units are not certified yet.** Live adapter therefore returns capacity unavailable, and FSKit statistics stay unavailable rather than displaying guessed values. Finder reporting is unchanged because extension has not been installed, activated, mounted, or tested with Drobo.
 
-The vendor-authored [5D3 guide, preserved PDF](https://content.etilize.com/User-Manual/1040150862.pdf), page 38, explicitly separates virtual volume size from actual storage and gives an example of a 64 TB volume backed by 2 TB of drives. The large address space permits later expansion. Reading that filesystem total would reproduce the misleading number.
+Local Mac has no attached enclosure. Exact model, home macOS version, filesystem, LUN count, and adapter chain remain unverified. Spare hardware is reserved for separate read-only lab plan.
 
-These quantities need separate sources:
+## Recovered vendor record
 
-| Quantity | Source / meaning |
+`DDService64d` parses page `0x7a`, subpage `0x02`, with big-endian values at offsets `0x04` protected free, `0x0c` protected used, `0x14` protected total, and `0x1c` unprotected total. Firmware constructs protected total as protected free plus protected used. PT extension fields remain uninterpreted.
+
+Recovered original user client is `com_TrustedData_UserClient_SCSIType00`. Bounded bridge uses selector 0 to open, selector 7 for MODE SENSE(10), and selector 1 to close. It reads LUN-info page `4` first and requires one LUN, then reads capacity page `2`. It accepts no caller-supplied commands and exposes no write selector.
+
+## Static recovery evidence
+
+Transport ABI details are tracked in [MACOS_MANAGEMENT_ABI.md](../research/MACOS_MANAGEMENT_ABI.md).
+
+Original `DDService64d` SHA-256: `6348d0374c0193c628380426bb7c9a814c41f67bc02c4304c0eaf4116efd5732`. REA/Ghidra recovered `ESAProtocol::ESACapacityInfo::parse` at `0x10009c8e6`, print method at `0x10009ca34`, and size getter at `0x10009ca1a`. Parser accepts page `0x7a`, subpage `0x02`, then reads four big-endian 64-bit values:
+
+| Page offset | Meaning |
 | --- | --- |
-| Virtual volume ceiling | Address space exposed by the logical device/filesystem; not installed protected capacity |
-| Protected usable total | Enclosure-reported capacity available for protected data |
-| Protected used / free | Enclosure's allocation accounting; not automatically identical to per-filesystem file usage |
-| Unprotected total | A separate value in the vendor capacity record; do not label it protected usable capacity |
-| Filesystem used / available | Mounted filesystem accounting; shared pools, reservations, and reclaimable space can change interpretation |
+| `0x04` | Protected free capacity |
+| `0x0c` | Protected used capacity |
+| `0x14` | Protected total capacity |
+| `0x1c` | Unprotected total capacity |
 
-Adding disk sizes or subtracting the largest drive is an estimate. It is not the source for the requested actual-capacity report.
+Basic record is 36 bytes (`0x24`). PT parser at `0x10009caf4` reads additional values at `0x24`, `0x2c`, and `0x34`; fields remain uninterpreted. 5D firmware image SHA-256: `f2c79c0cdfcb9695f45d95b94eeed249032d0da28d5ddbd3c45d62a86a06df14`; `HAManager::GetCapacityInfo` at `0x123610` constructs page `0x7a/0x02` with 56-byte payload and obtains array values through `GetArrayCapacityInfo` at `0xc5ee4`. Separate host-used path exists at `0xc5fa0`.
 
-## Direct recovery from original software
+Static boundary mismatch: original basic parser checks 28 bytes but reads through byte 35; PT parser similarly checks 28 but reads through byte 59. Caller allocation behavior is not established. OpenDrobo decoder requires complete declared 32- or 56-byte bodies and rejects truncation. These are static observations, not live captures or proof of byte units.
 
-This recovery uses original vendor binaries and firmware, not the removed third-party application dependency. Raw decompilation remains local under `artifacts/reports/capacity`.
+5D image is ARM32 with 10,598 named symbols; 5D3 inventory has 10,628. Outer TDIH lengths and CRCs match recorded containers, but vendor authenticity is not established. Raw decompilation and receipts remain ignored under `artifacts/reports/`.
 
-`DDService64d` SHA-256: `6348d0374c0193c628380426bb7c9a814c41f67bc02c4304c0eaf4116efd5732`. REA 6.8.0 / Ghidra 12.1.4 inspected its x86_64 `ESAProtocol::ESACapacityInfo::parse` at `0x10009c8e6`, its print method at `0x10009ca34`, and the size getter at `0x10009ca1a`. Selected parse instructions were independently inspected as assembly.
+## Finder boundary
 
-The parser accepts page `0x7a`, subpage `0x02`, and reads big-endian 64-bit values:
+Existing HFS+ mount reports logical address space, not proof of protected pool capacity. FSKit implementation is separate read-only view whose statistics can later use verified protected values. It does not transparently replace Apple's existing HFS+ provider, alter READ CAPACITY, edit partition metadata, or change disk contents.
 
-| Offset within the page | Vendor print label |
-| --- | --- |
-| `0x04` | Free Capacity (Protected) |
-| `0x0c` | Used Capacity (Protected) |
-| `0x14` | Total Capacity (Protected) |
-| `0x1c` | Total Capacity (Unprotected) |
+Module currently supports ordinary read-only files and directories, path confinement, inode-stable held descriptors, and conservative symlink handling. Resource forks, extended attributes, writable operations, and broader metadata fidelity remain open work.
 
-The basic page size is `0x24` (36 bytes). The separate PT parser at `0x10009caf4` reads three additional values at `0x24`, `0x2c`, and `0x34`. PT interpretation is unresolved and excluded from the reporting policy.
+## Evidence gates
 
-The 5D firmware's embedded storage executable has SHA-256 `f2c79c0cdfcb9695f45d95b94eeed249032d0da28d5ddbd3c45d62a86a06df14`. Its `HAManager::GetCapacityInfo` at `0x123610` builds page `0x7a/0x02` with a 56-byte declared payload, including the four basic values and the PT extension. It calls `DiskUtilizationDaemon::GetArrayCapacityInfo` at `0xc5ee4` and constructs protected total as protected free plus protected used. A separate `GetHostUsedCapacityInfo` at `0xc5fa0` shows that host-used accounting is another path. These are concrete static observations, not a live capture from the user's unit.
+Before any Finder claim, spare enclosure test must establish:
 
-The original basic parser's length guard accepts 28 bytes but then reads through byte 35. The PT parser similarly checks 28 while reading through byte 59. This is a statically observed boundary mismatch; whether callers always provide a larger allocation has not been established. Our experimental decoder requires the entire declared supported payload and rejects truncated or inconsistent input.
+1. Byte units from device records against known pack geometry.
+2. Registry identity, physical pack identity, and single-LUN scope.
+3. Agreement between decoded protected values and repeated read-only captures.
+4. Mount, `statfs`, Foundation statistics, and Finder display on same read-only view.
+5. Disconnect, remount, stale-record, and shared-pool behavior.
 
-Capacity byte units, record-to-device association, freshness, and pool/LUN scope still require controlled hardware confirmation. The prototype reporting adapter requires those confirmations explicitly; it never substitutes filesystem total or the virtual ceiling when they are missing.
+Raw capture uses `--capture-capacity-json <registry-id>` for lab work. It is hexadecimal evidence only and labels unit validation unverified. No destructive disk operation is authorized by this document.
 
-Local receipts include `ddservice-mcp-receipts.json`, `capacity-firmware-mcp-receipts.json`, corresponding `capacity-*.c/.asm`, `array-capacity*`, and `host-capacity-response*`. Addresses are executable virtual addresses, not member-disk locations. Some ARM decompiler paths contain incorrect logging strings and incomplete control flow; caller, assembly, and live-record corroboration remain necessary.
-
-## Where Finder must obtain corrected values
-
-[Apple's `statfs` documentation](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/statfs.2.html) describes mounted-filesystem block totals and available space. Apple's [FSStatFSResult](https://developer.apple.com/documentation/fskit/fsstatfsresult) provides total, used, free, and available byte/block properties for an FSKit filesystem. [FSPathURLResource](https://developer.apple.com/documentation/fskit/fspathurlresource) can represent a path in the existing file space on the current macOS target.
-
-The proposed path is a separate filesystem view with verified capacity statistics. A new FSKit module would own its file operations and volume-statistics callback, using the existing mounted volume as a candidate backing resource. This is an architectural proposal. It is not a documented switch for overriding an already-mounted Apple filesystem, and a statistics object alone creates no mount or Finder change.
-
-Changing a block device's reported size is a different operation. Existing partitions and filesystems were created for the original address space. This slice does not alter READ CAPACITY replies, partition tables, filesystem headers, maximum LUN size, or disk contents. The large underlying address space remains intact while a future filesystem view supplies truthful allocation information.
-
-The macOS 26 SDK exposes the relevant FSKit APIs. A working extension still needs complete file-operation behavior, identity binding, lifecycle/error handling, appropriate entitlement/signing, and mount/unmount validation. No extension has been installed, activated, or mounted.
-
-## Experimental code and acceptance boundary
-
-`experiments/capacity` is an isolated, offline prototype. It is not linked into the native app and does not change the user's existing Finder volume. It contains an independently written capacity-page decoder and an FSKit statistics adapter with synthetic tests. It must reject absent/invalid records, unknown byte units, unconfirmed device binding, ambiguous shared-pool scope, and stale/future observations. It must not manufacture a physical total from a 64 TB logical ceiling.
-
-The first adapter deliberately supports only an explicitly confirmed single-volume binding. Multiple LUNs can share a pack; reporting the entire free pool independently as separate guaranteed capacities would be misleading. A later allocation policy must account for this rather than sum per-view totals.
-
-Next gates:
-
-1. Collect read-only capacity records from the identified spare enclosure and establish byte units, pool/LUN identity, and agreement with known disk/layout state.
-2. Implement a read-only filesystem view, including file access and FSKit volume statistics. Keep existing volume geometry unchanged.
-3. Prove `statfs`, Foundation volume values, and Finder agree on real total/used/free. Compare exposed files byte-for-byte with the backing volume.
-4. Exercise disconnects, stale records, remounts, updates after adding capacity, and shared-pool cases. Unknown data must produce an explicit unavailable/error state.
-5. Evaluate writable behavior separately after integrity and allocation-budget validation. Accurate display alone is not a write-safety mechanism.
-
-The home Mac and enclosure are unavailable in this workspace. Exact model, home macOS, current filesystem, LUN count, and signing/extension prerequisites are not yet verified. Those are required before claiming Finder compatibility or changing the user's mount workflow.
+Rust core has 16 native ARM unit tests covering page/body bounds, scope flags, overlap-safe C ABI decoding, count validation, and record expiry. Historical `experiments/capacity` prototype retained 91 offline checks, including unit/scope/expiry rejection; it is not live transport path.

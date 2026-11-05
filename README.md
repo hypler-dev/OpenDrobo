@@ -1,54 +1,44 @@
 # OpenDrobo
 
-An independent project to preserve Drobo management on modern macOS and investigate BeyondRAID interoperability.
+OpenDrobo is an independent effort to preserve Drobo management and investigate BeyondRAID interoperability. It uses a portable Rust core, a shared Tauri interface, and a macOS read-only bridge to the original management driver.
 
-The native app follows the original Drobo Dashboard navigation and layout. It currently provides local, read-only registry discovery and checks for app releases from [hypler-dev/OpenDrobo](https://github.com/hypler-dev/OpenDrobo). It does **not** yet provide Thunderbolt storage transport, hardware health readings, firmware updates, or a BeyondRAID reader/writer.
+The interface follows Dashboard navigation with dark glass surfaces, animated selection glow, and optional locally extracted artwork. It discovers registry endpoints, performs bounded read-only capacity queries, and checks releases from [hypler-dev/OpenDrobo](https://github.com/hypler-dev/OpenDrobo). It does not install a driver, replace the Thunderbolt PCI/DMA path, write device state, flash firmware, or implement BeyondRAID recovery.
 
-## Build and run
+## Build and check
 
-Requirements: macOS 26 or newer, Xcode 26 with command-line tools, and Python 3.11 or newer. The app builds as a universal `arm64` / `x86_64` binary. Only Apple silicon execution has been checked locally.
+Tested local target: Apple silicon on macOS 26 with Xcode 26, Python 3.11+, Node 24+, npm, and Rust 1.98.0. Workspace-pinned ARM tools are used when present under `tools/`.
 
 ```sh
+npm --prefix desktop ci
 make check
 make build
 open dist/OpenDrobo.app
 ```
 
-No external source checkout is required. Builds are ad-hoc signed for local testing; no Developer ID provisioning, notarization, driver installation, or system changes occur.
+Frontend checks can also run directly with `npm --prefix desktop ci`, then `npm --prefix desktop run check` and `npm --prefix desktop run build`.
 
-The command-line discovery mode returns registry metadata, without opening a device or sending SCSI commands:
+`make check` runs portable Rust tests, frontend type/build checks, desktop policy tests, native transport sanitizer checks, and direct macOS FSKit checks. `make build` creates a local debug Tauri app, bundles an inactive `OpenDroboFS.appex`, and ad-hoc signs the result. It does not install or activate the extension. The build is not notarized or ready for public distribution.
 
-```sh
-dist/OpenDrobo.app/Contents/MacOS/OpenDrobo --scan-json
-```
-
-## Updates
-
-Dashboard Preferences checks `https://api.github.com/repos/hypler-dev/OpenDrobo/releases/latest`. Automatic checks are opt-in. The checker rejects draft/prerelease records, uncomparable tags, and links outside this project's GitHub release pages. Available releases open in the browser for manual download. Automatic download/install and signed update delivery are future work.
-
-No release is published yet. The correct current response is “No app releases have been published yet.” App updates and enclosure firmware updates are separate capabilities.
-
-## Artwork and source
-
-The build accepts optional original artwork in `artifacts/artwork`. Original assets are used only in the local research build and carry recorded provenance in [research/vendor-artwork.json](research/vendor-artwork.json). Their redistribution license has not been verified, so they are excluded from source control. Builds without them use native fallback symbols. Extracted Drobo installers, drivers, firmware, decompilation outputs, and tool runtimes are also local ignored artifacts.
-
-The app compiles this repository's native source. Device protocol parsing, management transport, and BeyondRAID implementation remain future work. Research tools and external reference repositories are recorded in [research/upstreams.json](research/upstreams.json); they are not application build dependencies.
-
-## Research
-
-- [Current work record and validation](docs/WORK_RECORD.md)
-- [Original software and firmware findings](research/REVERSE_ENGINEERING.md)
-- [Thunderbolt and storage metadata recovery](research/STATIC_RECOVERY.md)
-- [Platform/network capabilities and community backlog](docs/CAPABILITIES_AND_BACKLOG.md)
-- [Actual capacity and Finder reporting](docs/CAPACITY_REPORTING.md)
-
-Offline firmware inspection is reproducible:
+The registry-only command does not open a device or send management commands:
 
 ```sh
-python3 scripts/acquire_firmware.py
-python3 scripts/inspect_firmware.py path/to/firmware.tdf --output-dir artifacts/new-inventory
+dist/OpenDrobo.app/Contents/MacOS/opendrobo-desktop --scan-json
 ```
 
-The inspector checks TDIH lengths and CRCs, inventories ARM ELF images, and can extract embedded images and their symbol tables. It never executes or installs firmware. A CRC match establishes consistency, not vendor authenticity.
+Release checks are opt-in. They query only this project's latest GitHub release, reject drafts, prereleases, malformed versions, and links outside this repository, then open a validated release page for manual download. There is no automatic download or installation.
 
-OpenDrobo is not affiliated with Drobo or its successors. New code is MIT licensed; original third-party notices remain applicable.
+Controlled lab capture uses `--capture-capacity-json <registry-id>`. It returns the raw page as hexadecimal with an unverified-units label. No capacity number is presented as physical bytes until a named enclosure and spare-unit test establish units, device identity, and LUN scope.
+
+## Capacity and Finder boundary
+
+The Rust decoder accepts the recovered `0x7a/0x02` protected-capacity record and rejects truncation, stale data, inconsistent counts, unknown scope, and unconfirmed units. The macOS bridge uses only the recovered MODE SENSE path through the original user client: open, check LUN information, read the capacity page, and close. It rejects multiple LUNs and ambiguous physical-device scope.
+
+The FSKit module implements an initial separate read-only filesystem view. It binds before and after opening the backing path, keeps held descriptors tied to their original inodes, confines symlinks, and withholds capacity statistics when units are unverified. It is compiled and directly tested, but has not been activated, mounted, or validated in Finder. It does not override an existing Apple HFS+ mount or change disk geometry. Swift is retained for this macOS-specific extension; the older SwiftUI app and isolated Swift capacity experiment remain reference code.
+
+## Platform scope
+
+The Rust core and Tauri UI are intended for Linux and Windows. Their device adapters, filesystem modules, installers, and hardware compatibility are not implemented or tested. The macOS bridge still depends on the original Drobo management driver; this repository does not ship a replacement kernel or DriverKit storage driver.
+
+Original installers, firmware, driver binaries, extracted artwork, decompilation output, and tool runtimes remain ignored local research artifacts. Optional artwork is local input recorded in [research/vendor-artwork.json](research/vendor-artwork.json); redistribution rights are unverified, so vendor assets are excluded from public source. Builds without local artwork use project-owned fallbacks. OpenDrobo is not affiliated with Drobo or its successors.
+
+See the [work record](docs/WORK_RECORD.md), [capacity reporting](docs/CAPACITY_REPORTING.md), [recovered management ABI](research/MACOS_MANAGEMENT_ABI.md), [original-software findings](research/REVERSE_ENGINEERING.md), and [Thunderbolt/BeyondRAID research](research/STATIC_RECOVERY.md).

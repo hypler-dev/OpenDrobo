@@ -9,7 +9,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "dist"
 BUILD = OUTPUT / "build"
-APP = OUTPUT / "OpenDrobo.app"
+APP = OUTPUT / "OpenDroboSwiftReference.app"
 
 
 def run(*arguments):
@@ -34,7 +34,7 @@ def main():
         "-output", executable_dir / "OpenDrobo")
     info = {
         "CFBundleExecutable": "OpenDrobo",
-        "CFBundleIdentifier": "dev.hypler.OpenDrobo",
+        "CFBundleIdentifier": "dev.hypler.OpenDrobo.swift-reference",
         "CFBundleName": "OpenDrobo",
         "CFBundleDisplayName": "OpenDrobo",
         "CFBundlePackageType": "APPL",
@@ -63,7 +63,7 @@ def main():
     # Ad-hoc signing permits local launch. It does not confer distribution trust.
     run("codesign", "--force", "--sign", "-", APP)
     run("codesign", "--verify", "--strict", APP)
-    run("ditto", "-c", "-k", "--keepParent", APP, OUTPUT / "OpenDrobo-0.1.0-macos-universal.zip")
+    run("ditto", "-c", "-k", "--keepParent", APP, OUTPUT / "OpenDrobo-SwiftReference-0.1.0-macos-universal.zip")
     print(APP)
 
 
