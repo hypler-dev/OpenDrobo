@@ -40,6 +40,7 @@ The app compiles this repository's native source. Device protocol parsing, manag
 - [Original software and firmware findings](research/REVERSE_ENGINEERING.md)
 - [Thunderbolt and storage metadata recovery](research/STATIC_RECOVERY.md)
 - [Platform/network capabilities and community backlog](docs/CAPABILITIES_AND_BACKLOG.md)
+- [Actual capacity and Finder reporting](docs/CAPACITY_REPORTING.md)
 
 Offline firmware inspection is reproducible:
 

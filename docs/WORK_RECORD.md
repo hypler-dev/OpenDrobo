@@ -12,6 +12,12 @@ The user also requested Linux/Windows support as a direction. The capability rec
 
 The user subsequently directed removal of the previously included third-party application dependency and its README references. This means removing its derived parser, fixtures, acquisition/build integration, and bundled notice together. The current app must build from this repository's own application source without an external checkout; it does not ship a replacement protocol parser.
 
+The next accepted slice targets actual protected capacity in macOS/Finder as well as OpenDrobo. The user clarified that the displayed 64 TB is the virtual ceiling. Reading ordinary filesystem totals is therefore insufficient. [Capacity reporting](CAPACITY_REPORTING.md) owns the direct vendor-record recovery, isolated decoder/statistics prototype, and future filesystem-view gates. Existing disk/volume geometry remains untouched.
+
+The isolated `experiments/capacity` prototype now has a newly written capacity-page decoder and FSKit statistics adapter, based directly on original service/firmware analysis. Its 91 checks pass on Apple silicon, including the 64 TB ceiling distinction, all supported-page truncations, unknown scope/units, sliced input, and record expiry before statistics construction. It is not linked into the app, creates no filesystem mount, and does not change current Finder reporting.
+
+Producer: task `/root/capacity_prototype` using `gpt_worker`, with controller integration and bounds/expiry fixes. Fresh task `/root/capacity_review` using `gpt_reviewer` returned PASS with no actionable P1/P2/P3 findings. Full `make check` passes 25 Python tests, 25 app-policy assertions, and 91 isolated capacity assertions. Receipts: `artifacts/reports/capacity/validation.json` and `validation.log`, plus `artifacts/reports/capacity-checks.log`. All 16 local documentation links validate, and `git diff --check` passes. Native application source and its previously validated bundle are unchanged; no app rebuild, filesystem mount, driver/extension activation, home-Mac access, disk writes, or release occurred in this capacity slice. Live capacity transport and a complete filesystem module remain the next implementation gates.
+
 ## Current scope
 
 - Build and launch a native macOS 26 universal app with original-style navigation and truthful empty/unavailable states.
