@@ -12,26 +12,13 @@ require(!LocalDiscovery.matchesPCI(vendor: 0x4452, device: 0xffff), "Unknown Dro
 require(LocalDiscovery.decodeNumber(Data([0x52, 0x44, 0, 0])) == 0x4452, "IOKit PCI vendor bytes decode little endian")
 require(LocalDiscovery.decodeNumber(Data([0x70, 0x55, 0, 0])) == 0x5570, "IOKit PCI device bytes decode little endian")
 require(LocalDiscovery.decodeNumber(Data([0x52, 0x44])) == nil, "Truncated PCI properties remain unknown")
-let snapshot = PreviewFixture.snapshot
-require(snapshot.name == "Sample Drobo", "Synthetic records are clearly named")
-require(snapshot.hasCapacity && snapshot.totalBytes == 6_000_000_000_000, "Synthetic capacity decodes through the recovered protocol")
-require(snapshot.usedBytes + snapshot.freeBytes == snapshot.totalBytes, "Capacity accounts for every byte")
-require(snapshot.driveBays.count == 5, "Five synthetic drive bays decode")
-require(snapshot.driveBays.allSatisfy { $0.model.hasPrefix("Sample disk") }, "Synthetic disks are clearly named")
-require(snapshot.health == .unknown, "Missing status never claims healthy hardware")
-require(!snapshot.hasValidStatus && !snapshot.isProtected, "Missing status never establishes protection")
-var records = PreviewFixture.records
-records[0x09] = Data([0x7a, 0x09, 0x00, 0x04, 0, 0, 0, 0])
-require(DroboSnapshot.decode(records).health == .good, "A complete zero status reports good health")
-records[0x09] = Data([0x7a, 0x09, 0x00, 0x04, 0])
-require(DroboSnapshot.decode(records).health == .unknown, "Truncated status remains unknown")
-records[0x09] = Data([0x7a, 0x09, 0x00, 0x00, 0, 0, 0, 0])
-require(DroboSnapshot.decode(records).health == .unknown, "Empty declared status remains unknown")
-records[0x09] = Data([0x7a, 0x09, 0x00, 0x08, 0, 0, 0, 0])
-require(DroboSnapshot.decode(records).health == .unknown, "Status payload shorter than its declared length remains unknown")
-records[0x09] = Data([0x7a, 0x09, 0x00, 0x08, 0, 0, 2, 0])
-require(DroboSnapshot.decode(records).healthLabel == "Unknown", "Invalid status cannot claim a rebuild from partial bits")
-
+require(LocalDiscovery.matchesSCSI(vendor: "Drobo", product: "5D - TB"), "Original Thunderbolt SCSI vendor matches")
+require(LocalDiscovery.matchesSCSI(vendor: "  drObO\n", product: "8D - TB"), "SCSI vendor matching normalizes padding and case")
+require(LocalDiscovery.matchesSCSI(vendor: "USB 3.0", product: " drobo s - gen 2 "), "Original legacy SCSI vendor-product pair matches")
+require(!LocalDiscovery.matchesSCSI(vendor: "USB 3.0", product: "Other disk"), "Generic USB vendor alone does not identify a Drobo")
+require(!LocalDiscovery.matchesSCSI(vendor: "Other vendor", product: "Drobo"), "Product branding alone does not establish vendor identity")
+require(!LocalDiscovery.matchesSCSI(vendor: "TRUSTED", product: "USB Mass Storage"), "Generic legacy mass storage requires more identity evidence")
+require(!LocalDiscovery.matchesSCSI(vendor: "", product: "Drobo"), "Missing SCSI vendor remains unidentified")
 func releaseData(_ tag: String = "v0.2.0", url: String? = nil,
                  draft: Bool = false, prerelease: Bool = false) -> Data {
     try! JSONSerialization.data(withJSONObject: [

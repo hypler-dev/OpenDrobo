@@ -35,7 +35,7 @@ This is a working dependency map derived from package contents, imported interfa
 | Component | Observed architecture | Role |
 | --- | --- | --- |
 | Drobo Dashboard 3.6.1 | x86_64 | Original GUI |
-| DDService64d | To be inventoried separately | Background management service |
+| DDService64d | x86_64 | Background management service |
 | TrustedDataSCSIDriver 1.9.1 | x86_64, arm64e | SCSI peripheral management layer |
 | DroboTBT 1.4 | x86_64, arm64e | PCI/SCSI Thunderbolt transport |
 
@@ -44,8 +44,6 @@ The legacy Thunderbolt driver already contains Apple silicon code. Native GUI co
 Its original PCI personalities match vendor `0x4452`, devices `0x3844` and `0x5570`. It subclasses `IOSCSIParallelInterfaceController` and matches `IOPCIDevice`. REA decompilation of `InitializeController` at x86_64 address `0x0d8c` shows PCI mapping, BAR0/BAR1 access, firmware-readiness signaling, channel initialization, and a DMA command pool. This is a transport port, not a UI-only change.
 
 Apple provides [PCIDriverKit](https://developer.apple.com/documentation/pcidriverkit) and [SCSIControllerDriverKit](https://developer.apple.com/documentation/scsicontrollerdriverkit). Their existence identifies candidate APIs; feasibility of replacing this specific Drobo transport is still unproven.
-
-The ReDrobo project is a useful MIT protocol reference, but its USB SCSI-peripheral driver does not implement this Thunderbolt PCI transport.
 
 ## Firmware containers
 
@@ -84,6 +82,12 @@ REA/Ghidra decompilation of `OnDiskIndex::IsSignatureValid` compares the leading
 The separate `OnDiskIndex::Configure` decompilation corroborates the signature with an eight-byte copy of `CS-ODIH` plus its terminating NUL. It writes little-endian 32-bit values at offsets `0x0c`, `0x10`, and `0x14` from its three integer arguments. It also writes the 32-bit constant `5` at offset `0x08`. Argument meanings, units, the role of that constant, serialization boundaries, and checksum rules remain unresolved. These are decompiler-observed writes, not a verified disk-header specification.
 
 Some Ghidra analysis paths emitted ARM p-code/disassembly warnings. Pseudocode is a tool interpretation and must be checked against assembly, callers, and controlled disk images before it becomes a format specification or implementation.
+
+## Follow-up recovery
+
+The [static recovery notebook](STATIC_RECOVERY.md) records deeper driver and production storage analysis: the host-ready MMIO bit, channel/power-transition paths, packed index fields and metadata-version migration branches, RMR header validation, distinct CRC initializations, and virtual/logical map behavior. Assembly corroborates selected critical values. These remain static observations, with disk placement and runtime behavior explicitly unresolved.
+
+The [capability and community backlog](../docs/CAPABILITIES_AND_BACKLOG.md) separates legacy NAS networking from Thunderbolt host-agent proposals and maps attributed community symptoms to testable improvements. It does not claim an incident has been reproduced or fixed.
 
 ## Next research slice
 

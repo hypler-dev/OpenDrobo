@@ -145,5 +145,26 @@
     "sha256": "e78b724d788b788a22da6dd449096b236809ec91de4f897e740b307758b70517",
     "origin": "Original Drobo Dashboard 3.6.1 installer",
     "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboMiniArtwork.icns",
+    "source": "artifacts/vendor/dashboard-expanded/trusteddatascsidriver.pkg/Payload/Library/Extensions/TrustedDataSCSIDriver.kext/Contents/Resources/Mini.icns",
+    "sha256": "8388491d21bd36a499fd3e974530e1cfcfac839cf920c0267874f181ccb4866b",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboProArtwork.icns",
+    "source": "artifacts/vendor/dashboard-expanded/trusteddatascsidriver.pkg/Payload/Library/Extensions/TrustedDataSCSIDriver.kext/Contents/Resources/DroboPro.icns",
+    "sha256": "20caa8880ad1e118908b76ae254f0129c83b76a215aa9b9040af4e9c146ac1e5",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
+  },
+  {
+    "name": "DroboB800Artwork.icns",
+    "source": "artifacts/vendor/dashboard-expanded/trusteddatascsidriver.pkg/Payload/Library/Extensions/TrustedDataSCSIDriver.kext/Contents/Resources/B800i.icns",
+    "sha256": "aef32e3762dd3b42ec5e922e7691b4313716ba235eb27502cc986a015be2b4a2",
+    "origin": "Original Drobo Dashboard 3.6.1 installer",
+    "redistribution_license": "Not verified; local build only"
   }
 ]

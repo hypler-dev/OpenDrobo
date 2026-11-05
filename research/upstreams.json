@@ -10,16 +10,6 @@
     "sha256": "52851165bc96fb8c29b5f5be6d689be0ef6c3dcf74d5ec5c40f2165f23c03e28"
   },
   {
-    "repository": "fetzu/ReDrobo",
-    "commit": "b1955430d7c69dfc120fbae07969aa651655f5c5",
-    "committed_at": "2026-09-21T19:14:17Z",
-    "url": "https://github.com/fetzu/ReDrobo/commit/b1955430d7c69dfc120fbae07969aa651655f5c5",
-    "archive": "artifacts/vendor/ReDrobo-b1955430d7c69dfc120fbae07969aa651655f5c5.tar.gz",
-    "source_directory": "third_party/ReDrobo",
-    "archive_url": "https://codeload.github.com/fetzu/ReDrobo/tar.gz/b1955430d7c69dfc120fbae07969aa651655f5c5",
-    "sha256": "d1bc18f479597cba687949faff17b52c001b227288f8c43abb5d70d8a5b26533"
-  },
-  {
     "repository": "petersilva/drobo-utils",
     "commit": "fd4ff89bf8bd953075bd60defb81750297d4b4f9",
     "committed_at": "2025-10-21T00:52:12Z",

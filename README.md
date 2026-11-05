@@ -6,17 +6,15 @@ The native app follows the original Drobo Dashboard navigation and layout. It cu
 
 ## Build and run
 
-Requirements: macOS 26 or newer, Xcode 26 with command-line tools, and Python 3.11 or newer with safe `tarfile` extraction filters (tested with Python 3.11.6). The app builds as a universal `arm64` / `x86_64` binary. Only Apple silicon execution has been checked locally.
+Requirements: macOS 26 or newer, Xcode 26 with command-line tools, and Python 3.11 or newer. The app builds as a universal `arm64` / `x86_64` binary. Only Apple silicon execution has been checked locally.
 
 ```sh
-# First checkout only: acquire the checksum-pinned MIT protocol reference.
-make acquire
 make check
 make build
 open dist/OpenDrobo.app
 ```
 
-`make acquire` preserves an existing `third_party/ReDrobo` directory by refusing to overwrite it. Skip acquisition if it is already present. Builds are ad-hoc signed for local testing; no Developer ID provisioning, notarization, driver installation, or system changes occur.
+No external source checkout is required. Builds are ad-hoc signed for local testing; no Developer ID provisioning, notarization, driver installation, or system changes occur.
 
 The command-line discovery mode returns registry metadata, without opening a device or sending SCSI commands:
 
@@ -30,16 +28,18 @@ Dashboard Preferences checks `https://api.github.com/repos/hypler-dev/OpenDrobo/
 
 No release is published yet. The correct current response is “No app releases have been published yet.” App updates and enclosure firmware updates are separate capabilities.
 
-## Artwork and dependencies
+## Artwork and source
 
 The build accepts optional original artwork in `artifacts/artwork`. Original assets are used only in the local research build and carry recorded provenance in [research/vendor-artwork.json](research/vendor-artwork.json). Their redistribution license has not been verified, so they are excluded from source control. Builds without them use native fallback symbols. Extracted Drobo installers, drivers, firmware, decompilation outputs, and tool runtimes are also local ignored artifacts.
 
-The protocol reference is pinned in [research/upstreams.json](research/upstreams.json). `macos/DroboRecords.swift` derives from the MIT-licensed ReDrobo parser, with checks preventing missing or truncated status from establishing good health or protection. Its original license is retained in [macos/ReDrobo-LICENSE.txt](macos/ReDrobo-LICENSE.txt). The native UI is independent of ReDrobo's UI and driver activation code.
+The app compiles this repository's native source. Device protocol parsing, management transport, and BeyondRAID implementation remain future work. Research tools and external reference repositories are recorded in [research/upstreams.json](research/upstreams.json); they are not application build dependencies.
 
 ## Research
 
 - [Current work record and validation](docs/WORK_RECORD.md)
 - [Original software and firmware findings](research/REVERSE_ENGINEERING.md)
+- [Thunderbolt and storage metadata recovery](research/STATIC_RECOVERY.md)
+- [Platform/network capabilities and community backlog](docs/CAPABILITIES_AND_BACKLOG.md)
 
 Offline firmware inspection is reproducible:
 

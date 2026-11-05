@@ -13,6 +13,15 @@ enum LocalDiscovery {
         vendor == 0x4452 && (device == 0x3844 || device == 0x5570)
     }
 
+    /// Registry identity only, based on the original vendor driver's personalities.
+    /// Generic legacy storage names require more evidence before they can match.
+    static func matchesSCSI(vendor: String, product: String) -> Bool {
+        let vendorName = vendor.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let productName = product.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        return vendorName == "DROBO" ||
+            (vendorName == "USB 3.0" && productName == "DROBO S - GEN 2")
+    }
+
     static func scan() throws -> [LocalDrobo] {
         var devices: [LocalDrobo] = []
         for className in ["IOPCIDevice", "IOSCSIPeripheralDeviceNub"] {
@@ -39,7 +48,7 @@ enum LocalDiscovery {
                 } else {
                     let vendor = string(entry, "Vendor Identification")
                     let product = string(entry, "Product Identification")
-                    guard DroboIdentity.isDrobo(vendor: vendor, product: product) else { continue }
+                    guard matchesSCSI(vendor: vendor, product: product) else { continue }
                     name = [vendor, product].filter { !$0.isEmpty }.joined(separator: " ")
                     layer = "SCSI device detected; management is unverified"
                 }

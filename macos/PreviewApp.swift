@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Native app entry point. `--scan-json` is read-only diagnostics: it neither
-/// opens a GUI nor bootstraps a driver, daemon, or upstream Drobo model.
+/// Native app entry point. `--scan-json` reads registry metadata without
+/// sending device commands or starting a driver, daemon, or graphical interface.
 @main
 enum OpenDroboLauncher {
     static func main() {

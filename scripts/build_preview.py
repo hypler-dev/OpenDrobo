@@ -7,7 +7,6 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-UPSTREAM = ROOT / "third_party/ReDrobo/ReDrobo"
 OUTPUT = ROOT / "dist"
 BUILD = OUTPUT / "build"
 APP = OUTPUT / "OpenDrobo.app"
@@ -19,12 +18,7 @@ def run(*arguments):
 
 def main():
     BUILD.mkdir(parents=True, exist_ok=True)
-    local_sources = sorted((ROOT / "macos").glob("*.swift"))
-    local_names = {path.name for path in local_sources}
-    dependencies = ["DroboRecords.swift", "DroboStatus.swift", "DroboIOKit.swift",
-                    "Redaction.swift", "Enclosure.swift"]
-    sources = [UPSTREAM / name for name in dependencies if name not in local_names]
-    sources += local_sources
+    sources = sorted((ROOT / "macos").glob("*.swift"))
     for arch in ("arm64", "x86_64"):
         run("xcrun", "swiftc", "-target", f"{arch}-apple-macos26.0", "-O",
             "-o", BUILD / f"OpenDrobo-{arch}", *sources)
@@ -48,12 +42,11 @@ def main():
         "CFBundleVersion": "1",
         "LSMinimumSystemVersion": "26.0",
         "NSHighResolutionCapable": True,
-        "NSHumanReadableCopyright": "Includes ReDrobo, copyright 2026 fetzu, MIT license. Not affiliated with Drobo.",
+        "NSHumanReadableCopyright": "Copyright 2026 OpenDrobo contributors. Not affiliated with Drobo or its successors.",
     }
     if (ROOT / "artifacts/artwork/DroboOriginalApp.icns").is_file():
         info["CFBundleIconFile"] = "DroboOriginalApp.icns"
     (APP / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
-    shutil.copyfile(ROOT / "third_party/ReDrobo/LICENSE", resources / "ReDrobo-LICENSE.txt")
     # Vendor artwork is optional local input and is excluded from source control.
     # Public source builds retain the interface with generated/SF Symbol fallbacks.
     artwork = ROOT / "artifacts/artwork"
@@ -61,11 +54,9 @@ def main():
         for asset in artwork.iterdir():
             if asset.is_file() and asset.suffix.lower() in (".icns", ".png"):
                 shutil.copyfile(asset, resources / asset.name)
-    pins = json.loads((ROOT / "research/upstreams.json").read_text())
-    provenance = next(record for record in pins if record["repository"] == "fetzu/ReDrobo")
     (resources / "BUILD_INFO.json").write_text(json.dumps({
-        "mode": "native launch preview; no device management or bundled driver",
-        "upstream": provenance,
+        "mode": "local native preview; registry discovery and release update policy only; no transport, hardware management, or BeyondRAID support",
+        "repository": "https://github.com/hypler-dev/OpenDrobo",
         "architectures": ["arm64", "x86_64"],
         "minimum_macos": "26.0",
     }, indent=2) + "\n")

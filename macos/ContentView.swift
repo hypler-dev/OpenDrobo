@@ -57,6 +57,7 @@ struct DashboardRootView: View {
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selection: Section = .allDrobos
     @State private var viewMode: ViewMode = .icons
     @State private var devices: [LocalDrobo] = []
@@ -65,7 +66,7 @@ struct DashboardRootView: View {
 
     var body: some View {
         ZStack {
-            AuroraBackdrop(reduceTransparency: reduceTransparency)
+            DashboardBackdrop(reduceTransparency: reduceTransparency)
 
             VStack(spacing: 0) {
                 header
@@ -81,7 +82,7 @@ struct DashboardRootView: View {
         .frame(minWidth: 900, minHeight: 650)
         .preferredColorScheme(.dark)
         .transaction { transaction in
-            if reduceMotion {
+            if reduceMotion || scenePhase != .active {
                 transaction.animation = nil
             }
         }
@@ -274,7 +275,7 @@ struct DashboardRootView: View {
                 .padding(.horizontal, 28)
                 .padding(.bottom, 22)
         }
-        .dashboardGlass(cornerRadius: 0, tint: DashboardPalette.contentTint, reduceTransparency: reduceTransparency)
+        .dashboardMainSurface(reduceTransparency: reduceTransparency)
     }
 
     @ViewBuilder
@@ -418,7 +419,7 @@ struct DashboardRootView: View {
                 .padding(.horizontal, 28)
                 .padding(.bottom, 22)
         }
-        .dashboardGlass(cornerRadius: 0, tint: DashboardPalette.contentTint, reduceTransparency: reduceTransparency)
+        .dashboardMainSurface(reduceTransparency: reduceTransparency)
     }
 
     private var preferencesPanel: some View {
@@ -476,7 +477,7 @@ struct DashboardRootView: View {
             .padding(44)
             .frame(maxWidth: 760, alignment: .leading)
         }
-        .dashboardGlass(cornerRadius: 0, tint: DashboardPalette.contentTint, reduceTransparency: reduceTransparency)
+        .dashboardMainSurface(reduceTransparency: reduceTransparency)
     }
 
     private var supportPanel: some View {
@@ -500,7 +501,7 @@ struct DashboardRootView: View {
                 .padding(.horizontal, 28)
                 .padding(.bottom, 22)
         }
-        .dashboardGlass(cornerRadius: 0, tint: DashboardPalette.contentTint, reduceTransparency: reduceTransparency)
+        .dashboardMainSurface(reduceTransparency: reduceTransparency)
     }
 
     @MainActor
@@ -553,7 +554,7 @@ private struct SidebarRow: View {
             )
             .overlay {
                 if isSelected {
-                    RGBEdge(cornerRadius: 8, reduceTransparency: reduceTransparency)
+                    AnimatedRGBEdge(cornerRadius: 8, intensity: 0.90)
                 }
             }
         }
@@ -586,7 +587,7 @@ private struct RGBSegmentButton: View {
                 }
                 .overlay {
                     if isSelected {
-                        RGBEdge(cornerRadius: 5, reduceTransparency: reduceTransparency)
+                        AnimatedRGBEdge(cornerRadius: 5, intensity: 0.86)
                     }
                 }
         }
@@ -665,6 +666,7 @@ private struct PreferenceGroup<Content: View>: View {
 }
 
 private struct DashboardButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
     let reduceTransparency: Bool
 
     func makeBody(configuration: Configuration) -> some View {
@@ -678,6 +680,11 @@ private struct DashboardButtonStyle: ButtonStyle {
                 tint: DashboardPalette.controlTint.opacity(configuration.isPressed ? 0.55 : 1),
                 reduceTransparency: reduceTransparency
             )
+            .overlay {
+                if isEnabled {
+                    AnimatedRGBEdge(cornerRadius: 7, intensity: 0.34)
+                }
+            }
     }
 }
 
@@ -706,6 +713,13 @@ private struct ProductArtwork: View {
 }
 
 private enum ArtworkLoader {
+    static func image(named name: String, fileExtension: String) -> NSImage? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: fileExtension) else {
+            return nil
+        }
+        return NSImage(contentsOf: url)
+    }
+
     static let productImage: NSImage? = {
         let candidates = [
             ("Drobo5DArtwork", "png"),
@@ -715,8 +729,7 @@ private enum ArtworkLoader {
             ("DroboOriginalApp", "icns")
         ]
         for (name, ext) in candidates {
-            if let url = Bundle.main.url(forResource: name, withExtension: ext),
-               let image = NSImage(contentsOf: url) {
+            if let image = image(named: name, fileExtension: ext) {
                 return image
             }
         }
@@ -772,8 +785,40 @@ private struct NavigationArtwork: View {
     }
 }
 
+private struct AnimatedRGBEdge: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.scenePhase) private var scenePhase
+    let cornerRadius: CGFloat
+    let intensity: Double
+
+    var body: some View {
+        if reduceMotion || scenePhase != .active {
+            RGBEdge(
+                cornerRadius: cornerRadius,
+                phase: 0,
+                intensity: intensity,
+                reduceTransparency: reduceTransparency
+            )
+        } else {
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
+                let phase = context.date.timeIntervalSinceReferenceDate
+                    .truncatingRemainder(dividingBy: 8) / 8
+                RGBEdge(
+                    cornerRadius: cornerRadius,
+                    phase: phase,
+                    intensity: intensity,
+                    reduceTransparency: reduceTransparency
+                )
+            }
+        }
+    }
+}
+
 private struct RGBEdge: View {
     let cornerRadius: CGFloat
+    let phase: Double
+    let intensity: Double
     let reduceTransparency: Bool
 
     var body: some View {
@@ -786,47 +831,139 @@ private struct RGBEdge: View {
                         DashboardPalette.magenta,
                         DashboardPalette.cyan
                     ],
-                    center: .center
+                    center: .center,
+                    startAngle: .degrees(phase * 360),
+                    endAngle: .degrees(phase * 360 + 360)
                 ),
                 lineWidth: 1
             )
-            .shadow(color: DashboardPalette.cyan.opacity(reduceTransparency ? 0 : 0.62), radius: 6)
-            .shadow(color: DashboardPalette.magenta.opacity(reduceTransparency ? 0 : 0.48), radius: 8)
+            .shadow(color: DashboardPalette.cyan.opacity(reduceTransparency ? 0 : 0.62 * intensity), radius: 6)
+            .shadow(color: DashboardPalette.magenta.opacity(reduceTransparency ? 0 : 0.48 * intensity), radius: 8)
     }
 }
 
-private struct AuroraBackdrop: View {
+private struct DashboardBackdrop: View {
     let reduceTransparency: Bool
 
     var body: some View {
         ZStack {
             DashboardPalette.window
             if !reduceTransparency {
-                Circle()
-                    .fill(DashboardPalette.cyan.opacity(0.22))
-                    .blur(radius: 120)
-                    .offset(x: -260, y: -230)
-                Circle()
-                    .fill(DashboardPalette.violet.opacity(0.20))
-                    .blur(radius: 150)
-                    .offset(x: 270, y: -110)
-                Circle()
-                    .fill(DashboardPalette.magenta.opacity(0.13))
-                    .blur(radius: 170)
-                    .offset(x: 190, y: 280)
+                ProductLineupBackground()
+                    .opacity(0.34)
+                    .overlay(
+                        LinearGradient(
+                            colors: [Color.black.opacity(0.32), Color.black.opacity(0.08), Color.black.opacity(0.42)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                RadialGradient(
+                    colors: [DashboardPalette.cyan.opacity(0.075), .clear],
+                    center: .topLeading,
+                    startRadius: 10,
+                    endRadius: 480
+                )
+                RadialGradient(
+                    colors: [DashboardPalette.violet.opacity(0.065), .clear],
+                    center: .topTrailing,
+                    startRadius: 10,
+                    endRadius: 520
+                )
+                RadialGradient(
+                    colors: [DashboardPalette.magenta.opacity(0.040), .clear],
+                    center: .bottomTrailing,
+                    startRadius: 10,
+                    endRadius: 500
+                )
             }
         }
         .ignoresSafeArea()
+        .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+/// Decorative composition of bundled, original product cutouts. It is never
+/// device state and remains hidden from assistive technologies.
+private struct ProductLineupBackground: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let lineupHeight = min(max(proxy.size.height * 0.54, 320), 460)
+            HStack(alignment: .bottom, spacing: -30) {
+                LineupArtwork(name: "DroboMiniArtwork", fileExtension: "icns", height: lineupHeight * 0.66)
+                LineupArtwork(name: "Drobo5DArtwork", fileExtension: "png", height: lineupHeight * 0.92)
+                LineupArtwork(name: "DroboProArtwork", fileExtension: "icns", height: lineupHeight * 0.84)
+                LineupArtwork(name: "DroboB800Artwork", fileExtension: "icns", height: lineupHeight * 0.78)
+            }
+            .frame(width: proxy.size.width * 1.06, height: lineupHeight, alignment: .bottom)
+            .offset(x: -proxy.size.width * 0.03, y: proxy.size.height * 0.15)
+            .blur(radius: 1.1)
+            .saturation(0.72)
+            .mask(
+                LinearGradient(
+                    colors: [.clear, .white.opacity(0.94), .white.opacity(0.86), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct LineupArtwork: View {
+    let name: String
+    let fileExtension: String
+    let height: CGFloat
+
+    var body: some View {
+        if let image = ArtworkLoader.image(named: name, fileExtension: fileExtension) {
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(height: height)
+        }
     }
 }
 
 private extension View {
     @ViewBuilder
+    func dashboardMainSurface(reduceTransparency: Bool) -> some View {
+        if reduceTransparency {
+            self
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background {
+                    ZStack {
+                        DashboardPalette.opaquePanel
+                        DashboardPalette.darkBlend.opacity(0.24)
+                    }
+                }
+        } else {
+            self.frame(maxWidth: .infinity, maxHeight: .infinity).background(
+                ZStack {
+                    DashboardPalette.mainBlend
+                    LinearGradient(
+                        colors: [Color.black.opacity(0.06), Color.black.opacity(0.19)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
+            )
+        }
+    }
+
+    @ViewBuilder
     func dashboardGlass(cornerRadius: CGFloat, tint: Color, reduceTransparency: Bool) -> some View {
         if reduceTransparency {
             self
-                .background(DashboardPalette.opaquePanel)
+                .background {
+                    ZStack {
+                        DashboardPalette.opaquePanel
+                        DashboardPalette.darkBlend.opacity(0.18)
+                    }
+                }
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius)
@@ -835,28 +972,57 @@ private extension View {
         } else {
             self
                 .background(.ultraThinMaterial)
-                .glassEffect(.regular.tint(tint.opacity(0.42)), in: .rect(cornerRadius: cornerRadius))
+                .background(DashboardPalette.glassBlend)
+                .glassEffect(.regular.tint(tint.opacity(0.24)), in: .rect(cornerRadius: cornerRadius))
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius)
-                        .stroke(Color.white.opacity(0.22), lineWidth: 1)
+                        .stroke(Color.white.opacity(0.16), lineWidth: 1)
                 )
-                .shadow(color: tint.opacity(0.16), radius: 18, y: 8)
+                .shadow(color: tint.opacity(0.10), radius: 14, y: 7)
         }
     }
 }
 
 private enum DashboardPalette {
-    static let window = Color(red: 0.027, green: 0.032, blue: 0.055)
-    static let opaquePanel = Color(red: 0.075, green: 0.083, blue: 0.115)
+    static let window = Color(red: 0.012, green: 0.015, blue: 0.022)
+    static let opaquePanel = Color(red: 0.040, green: 0.045, blue: 0.060)
     static let cyan = Color(red: 0.20, green: 0.88, blue: 1.00)
     static let violet = Color(red: 0.58, green: 0.38, blue: 1.00)
     static let magenta = Color(red: 1.00, green: 0.24, blue: 0.76)
     static let info = Color(red: 0.32, green: 0.76, blue: 1.00)
-    static let headerTint = Color(red: 0.23, green: 0.28, blue: 0.42)
-    static let sidebarTint = Color(red: 0.13, green: 0.18, blue: 0.29)
-    static let contentTint = Color(red: 0.12, green: 0.10, blue: 0.25)
-    static let cardTint = Color(red: 0.19, green: 0.22, blue: 0.39)
-    static let controlTint = Color(red: 0.22, green: 0.25, blue: 0.42)
-    static let selectionTint = Color(red: 0.20, green: 0.27, blue: 0.52)
+    static let headerTint = Color(red: 0.10, green: 0.12, blue: 0.17)
+    static let sidebarTint = Color(red: 0.055, green: 0.070, blue: 0.105)
+    static let contentTint = Color(red: 0.040, green: 0.040, blue: 0.070)
+    static let cardTint = Color(red: 0.075, green: 0.090, blue: 0.140)
+    static let controlTint = Color(red: 0.10, green: 0.12, blue: 0.18)
+    static let selectionTint = Color(red: 0.10, green: 0.15, blue: 0.28)
+    static let mainBlend = LinearGradient(
+        colors: [
+            cyan.opacity(0.12),
+            violet.opacity(0.075),
+            magenta.opacity(0.065),
+            Color.black.opacity(0.10)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    static let glassBlend = LinearGradient(
+        colors: [
+            cyan.opacity(0.075),
+            violet.opacity(0.055),
+            magenta.opacity(0.045)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    static let darkBlend = LinearGradient(
+        colors: [
+            Color(red: 0.025, green: 0.070, blue: 0.095),
+            Color(red: 0.060, green: 0.035, blue: 0.100),
+            Color(red: 0.085, green: 0.025, blue: 0.065)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 }

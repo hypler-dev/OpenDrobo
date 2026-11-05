@@ -1,7 +1,4 @@
-.PHONY: acquire check build
-
-acquire:
-	python3 scripts/acquire_sources.py
+.PHONY: check build
 
 check:
 	python3 -m unittest discover -s tests
