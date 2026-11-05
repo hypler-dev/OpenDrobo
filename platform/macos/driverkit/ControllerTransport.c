@@ -274,8 +274,10 @@ ODTBTControllerStatus od_tbt_controller_submit(ODTBTController *c, const ODTBTTa
         le32(body + 28, 1);
         le32(body + 48, 0x400032); // Data-in, one SGL entry.
         le32(body + 52, (uint32_t)plan.transfer_bytes);
-        /* +0x38 is a firmware-opaque host SGL cookie. It remains zero: no CPU
-         * pointer is emitted. LUN 0 is represented by its zeroed +0x40 word. */
+        /* Examined 5D read paths select the inline SGL at +0x80 with bit 0x10
+         * and dataBuffer at +0x38 with bit 0x08. This encoder uses SGL mode and
+         * keeps the inactive direct-buffer field zero, never a CPU pointer.
+         * LUN 0 is represented by its zeroed +0x40 word. */
         le32(body + 72, plan.block_count);
         le64(body + 80, plan.logical_block);
         le64(body + 96, tx);

@@ -76,9 +76,14 @@ logical geometry. Those responses preserve the original virtual address space;
 they do not substitute protected pool capacity or shrink an existing HFS+ volume.
 
 The service is disabled in source before PCI open and is not wired into the
-application bridge. Unknown storage host-cookie semantics, DMA drain, complete
-SCSI/power behavior, provisioning, activation, and hardware validation remain
-open. Neither a linked bundle nor successful mock completion certifies byte
+application bridge. Original 5D bridge firmware distinguishes the direct-buffer
+field at SRB `+0x38` from the inline SGL at `+0x80`; the selected read flags use
+the latter. Graceful stop now rejects new work while polling matched completions,
+then closes sources only after owned actions and mapping leases finish. A fault
+closes sources conservatively; unfinished mappings/actions remain pinned.
+This is per-request ownership accounting, not a global PCI/DMA quiescence proof.
+Other firmware paths, complete SCSI/power behavior, provisioning, activation, and
+hardware validation remain open. Neither a linked bundle nor successful mock completion certifies byte
 units, measures OS file usage, or changes Finder statistics. The FSKit mount and
 unit/scope evidence gates above remain required.
 

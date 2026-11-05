@@ -63,9 +63,9 @@ until their regular-file opening policy is implemented.
 
 The non-loading DriverKit research now includes a real IIG SCSI controller
 subclass, target and asynchronous task callbacks, separate version-4 storage and
-management queues, and inline logical-geometry responses. Eleven ARM64 objects
-compile/link; six sanitizer suites check synthetic mapping, framing, callback
-ownership, completion, timeout, and removal behavior.
+management queues, and inline logical-geometry responses. Twelve ARM64 objects
+compile/link; seven sanitizer suites check synthetic mapping, framing, callback
+ownership, completion, graceful drain, timeout, and removal behavior.
 
 ```sh
 python3 scripts/build_driverkit.py
@@ -74,8 +74,12 @@ python3 scripts/build_driverkit.py
 This creates a local research artifact at
 `artifacts/driverkit/OpenDroboStorage.dext`. Hardware execution is disabled in
 source before PCI open or framework startup; no runtime setting or plist value
-enables it. Storage host-cookie semantics, DMA drain, full SCSI behavior, power/reset
-handling, provisioning, and hardware validation remain open. The bundle is not
+enables it. Original 5D bridge firmware confirms that the selected storage read
+mode uses the inline SGL; the direct-buffer field stays inactive. Graceful stop
+now keeps completion polling active until owned tasks and DMA leases finish.
+Timeout/removal still quarantine resources. Global hardware quiescence, other
+firmware paths, full SCSI behavior, power/reset handling, provisioning, and
+hardware validation remain open. The bundle is not
 embedded, installed, activated, or published. The application still uses the
 original driver and Finder reporting is unchanged. See the
 [transport findings](research/THUNDERBOLT_TRANSPORT.md) for evidence and limits.

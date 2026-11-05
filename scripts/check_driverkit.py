@@ -18,9 +18,10 @@ def main() -> int:
             "dma": ["DmaOwnership.c", "DmaChecks.c"],
             "interrupt": ["InterruptProgram.c", "InterruptChecks.c"],
             "controller": ["ReadOnlyTaskPolicy.c", "DmaOwnership.c", "InterruptProgram.c",
-                           "ControllerTransport.c", "ControllerChecks.c"],
+                           "ControllerTransport.c", "ScsiDrain.c", "ScsiTaskTable.c", "ControllerChecks.c"],
             "scsi-responses": ["ScsiResponses.c", "ScsiResponseChecks.c"],
             "scsi-tasks": ["ScsiTaskTable.c", "ScsiTaskChecks.c"],
+            "scsi-drain": ["ScsiDrain.c", "ScsiDrainChecks.c"],
         }
         for name, files in checks.items():
             executable = f"{temporary}/{name}-checks"
@@ -29,7 +30,7 @@ def main() -> int:
                             *(str(source / file) for file in files), "-o", executable],
                            check=True, env=env)
             subprocess.run([executable], check=True, env=env)
-    print("PASS: eleven ARM64 objects, IIG/link, six sanitizer suites; inactive bundle, hardware gate closed, no activation")
+    print("PASS: twelve ARM64 objects, IIG/link, seven sanitizer suites; inactive bundle, hardware gate closed, no activation")
     return 0
 
 

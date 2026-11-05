@@ -1,4 +1,6 @@
 #include "ControllerTransport.h"
+#include "ScsiDrain.h"
+#include "ScsiTaskTable.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -582,12 +584,106 @@ static void external_summary_is_service_owned(void) {
            removed.controller.removed && removed.controller.state == OD_TBT_CTL_QUIESCING);
     assert(!writes_at(&removed, 0, SUMMARY_IRQ) && !writes_at(&removed, 0, SUMMARY_IRQ + 4));
 }
+typedef struct { Fixture *fixture; unsigned retained, released, completed; } DrainAction;
+static void drain_retain(void *ctx, void *action) { assert(action); ++((DrainAction *)ctx)->retained; }
+static void drain_release(void *ctx, void *action) { assert(action); ++((DrainAction *)ctx)->released; }
+static void drain_complete(void *ctx, void *action, const ODTBTControllerCompletion *result) {
+    DrainAction *a = ctx; assert(action && (result->succeeded || result->cancelled));
+    assert(a->fixture->completed == 2 && a->fixture->request.state == OD_DMA_LEASE_COMPLETED &&
+           a->fixture->payload.state == OD_DMA_LEASE_COMPLETED);
+    ++a->completed;
+}
+static void graceful_completion_drain(void) {
+    Fixture f; fixture_channel(&f, 1, OD_TBT_CHANNEL_STORAGE, 1);
+    map_buffers_exact(&f, OD_TBT_STORAGE_REQUEST_BYTES, 512);
+    ODScsiDrain drain = OD_SCSI_DRAIN_INITIALIZER;
+    ODScsiTaskTable tasks = {0}; DrainAction action = {&f, 0, 0, 0};
+    ODScsiTaskCallbacks callbacks = {&action, drain_retain, drain_release, drain_complete};
+    assert(od_scsi_drain_init(&drain) == OD_SCSI_DRAIN_WAIT);
+    assert(od_scsi_tasks_init(&tasks, &callbacks) == OD_SCSI_TASK_OK);
+    ODTBTTaskInput input = read10(0, 1); uint32_t slot, tx;
+    assert(od_scsi_tasks_reserve(&tasks, input.controller_task_id, &action,
+                                &f.request, &f.payload, &slot) == OD_SCSI_TASK_OK);
+    assert(od_tbt_controller_submit(&f.controller, &input, &f.request, &f.payload, 10, 100, &tx) == OD_TBT_CTL_OK);
+    assert(od_scsi_tasks_bind(&tasks, slot, tx) == OD_SCSI_TASK_OK);
+    assert(od_scsi_drain_begin(&drain, 11, 90) == OD_SCSI_DRAIN_WAIT);
+    assert(!od_scsi_drain_accepts_work(&drain) && od_scsi_drain_polls_completions(&drain));
+    assert(od_scsi_drain_observe(&drain, 12, od_scsi_tasks_pending(&tasks), 2) == OD_SCSI_DRAIN_WAIT);
+    ODTBTControllerCompletion results[32]; size_t count = 99;
+    assert(od_tbt_controller_poll(&f.controller, 12, results, 32, &count) == OD_TBT_CTL_OK && !count);
+    assert(!action.completed && !f.completed); // A zero response count is not completion.
+    assert(od_scsi_drain_observe(&drain, 13, od_scsi_tasks_pending(&tasks), 2) == OD_SCSI_DRAIN_WAIT);
+    storage_response(&f, tx, 512);
+    assert(od_tbt_controller_poll(&f.controller, 14, results, 32, &count) == OD_TBT_CTL_OK && count == 1);
+    assert(f.completed == 2 && !action.completed);
+    assert(od_scsi_drain_observe(&drain, 14, od_scsi_tasks_pending(&tasks), 0) == OD_SCSI_DRAIN_WAIT);
+    assert(od_scsi_tasks_finish(&tasks, results) == OD_SCSI_TASK_OK);
+    assert(action.completed == 1 && action.retained == action.released);
+    assert(od_scsi_drain_observe(&drain, 15, od_scsi_tasks_pending(&tasks), 0) == OD_SCSI_DRAIN_CLOSE);
+    assert(!od_scsi_drain_polls_completions(&drain));
+    assert(od_tbt_controller_begin_stop(&f.controller, 0) == OD_TBT_CTL_OK);
+    assert(!finish(&f, 1, 0, OD_TBT_CTL_OK)); // No global bus-quiescence attestation needed or supplied.
+}
+static void failed_completion_cannot_drain(void) {
+    for (unsigned mode = 0; mode < 4; ++mode) {
+        Fixture f; fixture_channel(&f, 1, OD_TBT_CHANNEL_STORAGE, 1);
+        map_buffers_exact(&f, OD_TBT_STORAGE_REQUEST_BYTES, 512);
+        ODTBTTaskInput input = read10(0, 1); uint32_t tx, slot;
+        ODScsiTaskTable tasks = {0}; DrainAction action = {&f, 0, 0, 0};
+        ODScsiTaskCallbacks callbacks = {&action, drain_retain, drain_release, drain_complete};
+        assert(od_scsi_tasks_init(&tasks, &callbacks) == OD_SCSI_TASK_OK);
+        assert(od_scsi_tasks_reserve(&tasks, input.controller_task_id, &action,
+                                    &f.request, &f.payload, &slot) == OD_SCSI_TASK_OK);
+        assert(od_tbt_controller_submit(&f.controller, &input, &f.request, &f.payload, 10, 100, &tx) == OD_TBT_CTL_OK);
+        assert(od_scsi_tasks_bind(&tasks, slot, tx) == OD_SCSI_TASK_OK);
+        ODScsiDrain drain = OD_SCSI_DRAIN_INITIALIZER;
+        assert(od_scsi_drain_init(&drain) == OD_SCSI_DRAIN_WAIT);
+        assert(od_scsi_drain_begin(&drain, 11, 90) == OD_SCSI_DRAIN_WAIT);
+        ODTBTControllerCompletion results[32]; size_t count = 99;
+        ODTBTControllerStatus status;
+        ODScsiDrainFailure expected;
+        if (mode == 0) {
+            storage_response(&f, tx + 1, 512);
+            status = od_tbt_controller_poll(&f.controller, 12, results, 32, &count);
+            assert(status == OD_TBT_CTL_FORMAT && !count);
+            expected = OD_SCSI_DRAIN_FAILURE_PROTOCOL;
+        } else if (mode == 1) {
+            status = od_tbt_controller_poll(&f.controller, 100, results, 32, &count);
+            assert(status == OD_TBT_CTL_TIMEOUT && !count);
+            expected = OD_SCSI_DRAIN_FAILURE_TIMEOUT;
+        } else if (mode == 2) {
+            put32(f.bar0, STORAGE_RSP_IRQ, UINT32_MAX);
+            status = od_tbt_controller_poll(&f.controller, 12, results, 32, &count);
+            assert(status == OD_TBT_CTL_IO && f.controller.removed && !count);
+            expected = OD_SCSI_DRAIN_FAILURE_REMOVAL;
+        } else {
+            put32(f.bar0, SUMMARY_IRQ, UINT32_MAX);
+            status = od_tbt_controller_summary_clear(&f.controller);
+            assert(status == OD_TBT_CTL_IO && f.controller.removed);
+            expected = OD_SCSI_DRAIN_FAILURE_REMOVAL;
+        }
+        // Same status classifier as the SDK service's queue/summary fault path.
+        assert(od_scsi_drain_fail_controller(&drain, status, f.controller.removed) == OD_SCSI_DRAIN_ERROR);
+        assert(drain.failure == expected);
+        assert(f.request.state == OD_DMA_LEASE_QUARANTINED && f.payload.state == OD_DMA_LEASE_QUARANTINED);
+        assert(!f.completed && !f.released && !od_scsi_drain_accepts_work(&drain));
+        ODTBTControllerCompletion cancellation = {input.controller_task_id, tx, 0, 0, 0, 0, 1};
+        assert(od_scsi_tasks_finish(&tasks, &cancellation) == OD_SCSI_TASK_DMA_LIVE);
+        assert(action.retained == 1 && !action.released && !action.completed && od_scsi_tasks_pending(&tasks) == 1);
+        assert(!finish(&f, 1, 0, OD_TBT_CTL_QUARANTINED)); // Cancellation cannot release uncertain DMA.
+        assert(od_scsi_drain_observe(&drain, 91, 0, 0) == OD_SCSI_DRAIN_ERROR);
+        assert(finish(&f, 1, 1, OD_TBT_CTL_OK) == 1); // Explicit test-only external quiescence, never service behavior.
+        assert(od_scsi_tasks_finish(&tasks, &cancellation) == OD_SCSI_TASK_OK);
+        assert(!od_scsi_tasks_pending(&tasks) && action.completed == 1 && action.retained == action.released);
+    }
+}
 int main(void) {
     success_and_wire(); legacy_management_init_stays_owned(); publication_failure_matrix(); malformed_and_status_completions();
     timeout_removal_and_completion_retry(); start_and_command_gates(); partial_start_and_stop_retry();
     multiple_slots_and_stale_reuse();
     foreign_dma_provider();
     storage_wire_and_gates(); external_summary_is_service_owned();
+    graceful_completion_drain(); failed_completion_cannot_drain();
     puts("PASS: controller handshake, storage frames, completion association, DMA, summary, timeout, removal, and drain gates");
     return 0;
 }

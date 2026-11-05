@@ -5,6 +5,7 @@
 #include "DriverKitDma.h"
 #include "ScsiResponses.h"
 #include "ScsiTaskTable.h"
+#include "ScsiDrain.h"
 #include <DriverKit/DriverKit.h>
 #include <DriverKit/IOBufferMemoryDescriptor.h>
 #include <DriverKit/IODispatchQueue.h>
@@ -27,6 +28,7 @@ struct OpenDroboSCSIController_IVars {
     ODTBTDriverKitSession session;
     ODTBTController storage = {}, management = {};
     ODScsiTaskTable tasks = {};
+    ODScsiDrain drain = {};
     ODScsiIdentity identity = {};
     ServiceTask slots[OD_TBT_CONTROLLER_SLOTS];
     IOPCIDevice *provider = nullptr; // Borrowed from Start until Stop's super dispatch.
@@ -39,6 +41,7 @@ struct OpenDroboSCSIController_IVars {
     bool stopping = false, sources_closed = false, stop_pin = false;
     bool target_present = false, target_destroying = false, power_pending = false;
     bool startup_failed = false, auxiliary_closing = false, auxiliary_closed = false;
+    bool sources_closing = false;
 };
 struct ServicePin {
     OpenDroboSCSIController *service;
@@ -51,6 +54,8 @@ static const OSDispatchMethod kSuperDispatch =
     (OSDispatchMethod)&IOUserSCSIParallelInterfaceController::_Dispatch;
 static void maybe_finish_stop(OpenDroboSCSIController *);
 static void begin_shutdown(OpenDroboSCSIController *);
+static void advance_drain(OpenDroboSCSIController *);
+static void close_sources(OpenDroboSCSIController *);
 
 static uint64_t uptime_ns() {
     mach_timebase_info_data_t timebase = {};
@@ -71,6 +76,16 @@ static void release_buffers(ServiceTask &task) {
     if (task.request_buffer) task.request_buffer->release();
     if (task.data_buffer) task.data_buffer->release();
     task = ServiceTask{};
+}
+static uint32_t live_owned_leases(const OpenDroboSCSIController_IVars *v) {
+    uint32_t count = 0;
+    for (const auto &slot : v->slots) {
+        const ODDmaLease *leases[] = {&slot.request, &slot.payload};
+        for (auto lease : leases)
+            if (lease->state != OD_DMA_LEASE_EMPTY && lease->state != OD_DMA_LEASE_COMPLETED)
+                ++count;
+    }
+    return count;
 }
 static void retain_action(void *, void *action) { static_cast<OSAction *>(action)->retain(); }
 static void release_action(void *, void *action) { static_cast<OSAction *>(action)->release(); }
@@ -110,6 +125,7 @@ static void defer_result(OpenDroboSCSIController *self, ODTBTControllerCompletio
     self->retain();
     self->ivars->queue->DispatchAsync(^{
         (void)od_scsi_tasks_finish(&self->ivars->tasks, &result);
+        advance_drain(self);
         self->release();
     });
 }
@@ -145,11 +161,12 @@ static void close_session(OpenDroboSCSIController *self) {
         // Failed cancellation retains the source, owner, queue and stop pin.
     });
 }
-static void begin_shutdown(OpenDroboSCSIController *self) {
+static void close_sources(OpenDroboSCSIController *self) {
     auto v = self->ivars;
-    if (v->stopping) { maybe_finish_stop(self); return; }
+    if (v->sources_closing) { maybe_finish_stop(self); return; }
+    v->sources_closing = true;
     v->stopping = true; v->running = false;
-    self->retain(); v->stop_pin = true;
+    if (!v->stop_pin) { self->retain(); v->stop_pin = true; }
     if (v->engines_initialized) {
         if (v->storage.state == OD_TBT_CTL_RUNNING)
             (void)od_tbt_controller_summary_disable(&v->storage);
@@ -164,10 +181,37 @@ static void begin_shutdown(OpenDroboSCSIController *self) {
         });
     });
 }
+static void begin_shutdown(OpenDroboSCSIController *self) {
+    (void)od_scsi_drain_fail(&self->ivars->drain, OD_SCSI_DRAIN_FAILURE_PROTOCOL);
+    close_sources(self);
+}
+static void shutdown_controller(OpenDroboSCSIController *self, ODTBTController *engine,
+                                ODTBTControllerStatus status) {
+    (void)od_scsi_drain_fail_controller(&self->ivars->drain, status, engine->removed);
+    close_sources(self);
+}
+static void advance_drain(OpenDroboSCSIController *self) {
+    auto v = self->ivars;
+    if (v->drain.state != OD_SCSI_DRAIN_DRAINING || v->sources_closing) return;
+    auto status = od_scsi_drain_observe(&v->drain, uptime_ms(),
+                                       od_scsi_tasks_pending(&v->tasks), live_owned_leases(v));
+    if (status == OD_SCSI_DRAIN_CLOSE || status == OD_SCSI_DRAIN_ERROR) close_sources(self);
+}
+static void request_graceful_stop(OpenDroboSCSIController *self) {
+    auto v = self->ivars;
+    if (v->sources_closing) { maybe_finish_stop(self); return; }
+    uint64_t now = uptime_ms();
+    if (!now || now > UINT64_MAX - 30000) { begin_shutdown(self); return; }
+    v->stopping = true; // Stop admission while timer/interrupt completion work remains active.
+    if (!v->stop_pin) { self->retain(); v->stop_pin = true; }
+    auto status = od_scsi_drain_begin(&v->drain, now, now + 30000);
+    if (status == OD_SCSI_DRAIN_ERROR) { close_sources(self); return; }
+    advance_drain(self);
+}
 static void maybe_finish_stop(OpenDroboSCSIController *self) {
     auto v = self->ivars;
     if (!v || !v->stopping || !v->sources_closed || v->auxiliary_work ||
-        od_scsi_tasks_pending(&v->tasks)) return;
+        od_scsi_tasks_pending(&v->tasks) || live_owned_leases(v)) return;
     if (v->target_present && !v->target_destroying) {
         v->target_destroying = true; ++v->auxiliary_work;
         v->auxiliary->DispatchAsync(^{
@@ -210,18 +254,21 @@ static void maybe_finish_stop(OpenDroboSCSIController *self) {
 }
 static void poll_queues(OpenDroboSCSIController *self) {
     auto v = self->ivars;
-    if (!v->running || v->stopping) return;
+    if (!v->running || !od_scsi_drain_polls_completions(&v->drain)) return;
     /* Acknowledge the shared cause BEFORE inspecting both queues. Individual
      * engines own only their channel response acknowledgments in this mode. */
-    if (od_tbt_controller_summary_clear(&v->storage) != OD_TBT_CTL_OK) { begin_shutdown(self); return; }
+    auto status = od_tbt_controller_summary_clear(&v->storage);
+    if (status != OD_TBT_CTL_OK) { shutdown_controller(self, &v->storage, status); return; }
     for (auto engine : {&v->storage, &v->management}) {
         ODTBTControllerCompletion results[OD_TBT_CONTROLLER_SLOTS]; size_t count = 0;
-        if (od_tbt_controller_poll(engine, uptime_ms(), results, OD_TBT_CONTROLLER_SLOTS, &count) != OD_TBT_CTL_OK) {
-            begin_shutdown(self); return;
+        status = od_tbt_controller_poll(engine, uptime_ms(), results, OD_TBT_CONTROLLER_SLOTS, &count);
+        if (status != OD_TBT_CTL_OK) {
+            shutdown_controller(self, engine, status); return;
         }
         for (size_t i = 0; i < count; ++i)
             if (od_scsi_tasks_finish(&v->tasks, results + i) != OD_SCSI_TASK_OK) { begin_shutdown(self); return; }
     }
+    advance_drain(self);
 }
 
 bool OpenDroboSCSIController::init() {
@@ -229,12 +276,14 @@ bool OpenDroboSCSIController::init() {
     ivars = new (std::nothrow) OpenDroboSCSIController_IVars;
     if (!ivars) return false;
     ODScsiTaskCallbacks callbacks = {this, retain_action, release_action, complete_action};
-    return od_scsi_tasks_init(&ivars->tasks, &callbacks) == OD_SCSI_TASK_OK;
+    return od_scsi_tasks_init(&ivars->tasks, &callbacks) == OD_SCSI_TASK_OK &&
+           od_scsi_drain_init(&ivars->drain) != OD_SCSI_DRAIN_ERROR;
 }
 void OpenDroboSCSIController::free() {
     /* A session/stop retain pins the service while callbacks or DMA remain.
      * Never free caller-owned lease storage on an unexpected unsafe teardown. */
-    if (ivars && (od_scsi_tasks_pending(&ivars->tasks) || ivars->stop_pin || ivars->auxiliary_work ||
+    if (ivars && (od_scsi_tasks_pending(&ivars->tasks) || live_owned_leases(ivars) ||
+                  ivars->stop_pin || ivars->auxiliary_work ||
                   ivars->timer || (ivars->session.GetState() != ODTBTDriverKitSession::State::Empty &&
                                   ivars->session.GetState() != ODTBTDriverKitSession::State::Closed))) return;
     if (ivars) {
@@ -334,7 +383,7 @@ kern_return_t IMPL(OpenDroboSCSIController, Stop) {
     ServicePin pin(this);
     if (!provider) return kIOReturnBadArgument;
     if (!ivars->stop_provider) { ivars->stop_provider = provider; provider->retain(); }
-    begin_shutdown(this);
+    request_graceful_stop(this);
     return kIOReturnSuccess;
 }
 kern_return_t IMPL(OpenDroboSCSIController, SetPowerState) {
@@ -343,7 +392,7 @@ kern_return_t IMPL(OpenDroboSCSIController, SetPowerState) {
     if (powerFlags == kIOServicePowerCapabilityOn)
         return ivars->stopping ? kIOReturnNotReady : SetPowerState(powerFlags, SUPERDISPATCH);
     ivars->power_pending = true; ivars->pending_power = powerFlags;
-    begin_shutdown(this);
+    request_graceful_stop(this);
     return kIOReturnSuccess;
 }
 
@@ -357,7 +406,8 @@ kern_return_t IMPL(OpenDroboSCSIController, UserProcessParallelTask) {
     ServicePin pin(this);
     if (!response || !completion) return kIOReturnBadArgument;
     *response = kSCSIServiceResponse_SERVICE_DELIVERY_OR_TARGET_FAILURE;
-    if (!ivars->running || ivars->stopping || parallelRequest.fSCSIParallelFeatureRequestCount ||
+    if (!ivars->running || ivars->stopping || !od_scsi_drain_accepts_work(&ivars->drain) ||
+        parallelRequest.fSCSIParallelFeatureRequestCount ||
         parallelRequest.fTaskAttribute != kSCSITask_SIMPLE || parallelRequest.version != 1 ||
         parallelRequest.fTargetID != 0) return kIOReturnSuccess;
     for (auto byte : parallelRequest.fLogicalUnitBytes) if (byte) return kIOReturnSuccess;
@@ -429,7 +479,7 @@ kern_return_t IMPL(OpenDroboSCSIController, UserProcessParallelTask) {
         ODTBTControllerCompletion result = {slot.id, 0, 0, 0, 0, 0, 1};
         defer_result(this, result);
     }
-    begin_shutdown(this);
+    shutdown_controller(this, engine, status);
     return kIOReturnSuccess;
 }
 

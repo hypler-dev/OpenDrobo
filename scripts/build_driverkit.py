@@ -41,7 +41,7 @@ def build(output: Path) -> Path:
               "-isystem", includes, "-iframework", frameworks, "-I", str(source),
               "-I", str(generated), "-Wall", "-Wextra", "-Werror"]
     c_files = ["ReadOnlyTaskPolicy", "DmaOwnership", "InterruptProgram", "ControllerTransport",
-               "ScsiResponses", "ScsiTaskTable"]
+               "ScsiResponses", "ScsiTaskTable", "ScsiDrain"]
     cpp_files = [source / f"{name}.cpp" for name in
                  ("ReadOnlyTaskAdapter", "DriverKitDma", "DriverKitSession", "OpenDroboSCSIController")]
     cpp_files.append(generated / "OpenDroboSCSIController.iig.cpp")
