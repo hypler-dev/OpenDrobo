@@ -61,11 +61,19 @@ original READ CAPACITY implementation derives geometry from the logical LUN
 table. The new port decoder therefore labels its byte totals as virtual
 ceilings; it never uses them to satisfy the protected-capacity confirmation.
 
-An ARM64 DriverKit task adapter now compiles against the installed SDK. Its
+An ARM64 DriverKit task adapter compiles against the installed SDK. Its
 read-only command policy distinguishes those geometry queries from the two
 vendor MODE SENSE pages. It performs no MMIO or DMA and is not a live backend.
 The application and FSKit provider still use the existing management bridge
 and retain the unconfirmed-unit gate.
+
+The follow-up adds a separately tested version-4 management queue, DMA lease
+ownership, firmware-defined interrupt operations, and compile-only SDK resource
+adapters. It can encode the allowlisted capacity/LUN-info requests against mocks;
+it is not wired into the live bridge. Storage-controller callbacks, storage reads,
+target creation, driver packaging, activation, and hardware validation remain
+open. Neither the virtual LUN table nor successful mock completion confirms the
+capacity record's units or changes Finder statistics.
 
 The [RMR follow-up](../research/BEYONDRAID_LAYOUT.md) resolves the metadata
 checksum window and supports offline header-candidate inspection. It does not

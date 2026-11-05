@@ -61,10 +61,15 @@ keep protected capacity unavailable. Native execution has been checked only
 on the local Apple silicon Mac. The probe rejects unverified host platforms
 until their regular-file opening policy is implemented.
 
-The initial read-only task adapter compiles against Apple's ARM64 DriverKit
-SDK, and its pure command policy has sanitizer checks. It is not a driver
-bundle or a replacement live transport. No original-driver-free hardware
-connection or Finder capacity change has been demonstrated.
+The non-loading DriverKit components now include DMA ownership, firmware-defined
+interrupt operations, a version-4 read-only management queue, and SDK PCI/interrupt
+resource adapters. Seven ARM64 SDK objects compile; four sanitizer suites check
+mocked mapping, publication, completion, timeout, and removal failures. DMA writes
+use the SDK's prepared mapping. Uncertain preparations retain resources for
+cleanup; published timeouts and removals quarantine their mappings.
+The app still uses the original driver: these components have no storage-controller
+service/bundle, hardware activation, or Finder capacity proof. See the
+[transport findings](research/THUNDERBOLT_TRANSPORT.md) for exact scope and remaining work.
 
 Original installers, firmware, driver binaries, extracted artwork, decompilation output, and tool runtimes remain ignored local research artifacts. Optional artwork is local input recorded in [research/vendor-artwork.json](research/vendor-artwork.json); redistribution rights are unverified, so vendor assets are excluded from public source. Builds without local artwork use project-owned fallbacks. OpenDrobo is not affiliated with Drobo or its successors.
 

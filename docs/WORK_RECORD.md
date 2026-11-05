@@ -16,7 +16,7 @@ The former third-party application dependency has been removed. No external pars
 - `desktop/src-tauri/`: Rust commands for registry discovery, bounded read-only capacity calls, raw hexadecimal lab capture, and scoped GitHub release checks.
 - `platform/macos/transport/`: C bridge for original user-client ABI. Query is open → LUN page 4 → capacity page 2 → close; no arbitrary or write commands.
 - `platform/macos/fskit/`: Swift FSKit read-only separate-view module with path/inode binding, held descriptors, directory enumeration, and conservative symlink confinement.
-- `platform/macos/driverkit/`: an ARM64 SDK task projection and pure read-only command policy; no driver bundle or live transport.
+- `platform/macos/driverkit/`: an ARM64 SDK task projection, read-only policy, DMA ownership leases, firmware-defined interrupt interpreter, bounded version-4 management engine, and SDK DMA/PCI/interrupt resource adapters; no driver bundle or activated live transport.
 
 The native source intentionally passes `byteUnitsConfirmed: false`. Injected FSKit tests exercise a positive confirmed record, but live provider statistics remain unavailable until hardware evidence exists. The older `macos/` SwiftUI app and `experiments/capacity/` Swift prototype remain reference code; `make build` uses the Rust/Tauri application.
 
@@ -79,18 +79,42 @@ Fresh `independence_review` (`gpt_reviewer`, OpenAI) returned PASS after an unsu
 
 Latest ignored receipts: `artifacts/reports/desktop-checks/results.json` (18 successful lanes), `artifacts/reports/independence/probe-validation.json`, original REA query receipts under `independence/thunderbolt` and `independence/beyondraid`, ARM corroboration excerpts, and official Apple references under `independence/driverkit`. Input fixtures are explicitly synthetic and remain outside public source.
 
+## DMA, interrupt, and controller slice
+
+The user authorized continued work on DMA, interrupts, and controller lifecycle. This extends published checkpoint `031f95998bebe8cd6e615d86198b26aa853d369e` with a bounded, non-loading component. Acceptance requires actual ARM64 SDK compilation and failure-injected mock-MMIO/DMA checks, while all live activation, hardware, mount, and unit/scope gates remain closed.
+
+Original REA/Ghidra queries recovered the 84-byte interrupt entry, five operator semantics, local-only state transformation, TM request/response/summary selection, DMA limits, and removal ordering. Selected interrupt operations and the 104-byte single-segment TM branch were independently checked against the original arm64e disassembly. The original slice hashes are unchanged. Exact facts, addresses and remaining unknowns are in [THUNDERBOLT_TRANSPORT.md](../research/THUNDERBOLT_TRANSPORT.md); raw queries and selected assembly remain ignored under `artifacts/reports/controller/`.
+
+Implementation:
+
+- `platform/macos/driverkit/DmaOwnership.h` and `.c`: exact-range mapping/permission checks, retained resources on uncertain preparation or failed completion, and explicit quarantine/drain gates.
+- `platform/macos/driverkit/DriverKitDma.h` and `.cpp`: actual SDK calls bound to the opened PCI provider, per-command provider retention, bounded SDK segment copying, and request writes through the prepared mapping.
+- `platform/macos/driverkit/InterruptProgram.h` and `.c`: bounded definitions, local state evaluation, ordered injected register operations, and sentinel/failure handling.
+- `platform/macos/driverkit/ControllerTransport.h` and `.c`: one-shot version-4, target-0/LUN-0 read-only management queue with checked regions/windows, same-provider DMA, independent transaction IDs, completion association, timeout/removal quarantine, partial-enable cleanup and retry. Storage/inline emulation is unsupported here.
+- `platform/macos/driverkit/DriverKitSession.h` and `.cpp`: exclusive open, BAR lookup, bounded SDK accessors, bound-controller/interrupt gates before bus mastering, and asynchronous disable/cancel before release. It cannot establish outstanding DMA quiescence.
+- `platform/macos/driverkit/DmaChecks.c`, `InterruptChecks.c`, and `ControllerChecks.c`: synthetic ownership/MMIO/clock fixtures and failure injection. `scripts/check_driverkit.py` compiles seven SDK objects and runs four sanitizer suites including the existing policy suite.
+- `README.md`, this record, `docs/CAPACITY_REPORTING.md`, and `research/THUNDERBOLT_TRANSPORT.md`: source scope, recovered evidence, validation and remaining hardware limits.
+
+Validation: all 18 `make check` lanes passed. The focused DriverKit lane was rerun after subsequent native changes; its latest result is recorded below. The controller tests include 15 submission failure positions, partial startup, 17 shutdown failure positions with retry, independent wire bytes, foreign-provider rejection, multiple slots/out-of-order replies, stale slot reuse, permissions, timeout/removal, and explicit interrupt/drain gates. Actual SDK PCI/DMA/interrupt calls are compiled only, while host tests use synthetic backends. No full replacement service or live DMA transfer has run. The unchanged app/FSKit package was not rebuilt for this source-only slice; no public binary release was created.
+
+The controller owns integration, architecture and release judgment. Native OpenAI `gpt_worker` tasks `dma_ownership` and `interrupt_program` produced bounded disjoint components; `gpt_reader` task `dma_sdk_reader` supplied SDK and ARM evidence. Fresh `gpt_reviewer` task `controller_review` returned **PASS, no actionable P1/P2/P3**, after final source and receipt review. Findings resolved provider/direction binding, partial-interrupt cleanup, the declared maximum-LUN bound, and documentation precision. Worker/reviewer TOMLs configure `gpt-5.6-terra`; reader config is `gpt-5.6-luna`. Runtime IDs are not exposed. No GLM, Spark or retired-model lane was used. The review is evidence for controller judgment, not independent publication authority.
+
+Final focused result: `python3 scripts/check_driverkit.py` with `TMPDIR=/private/tmp` exited 0 after the last native change, compiling seven ARM64 objects and passing all four sanitizer suites. Direct stdout/exit receipts are `artifacts/reports/controller/final-driverkit-check.log` and `.json`; `controller/validation.json` binds the final native source hashes to that result. The full 18-lane receipt remains `artifacts/reports/desktop-checks/results.json`. The containing source commit is this slice's checkpoint. Publication uses the user's standing source-push authorization; verify `HEAD` against `git ls-remote origin refs/heads/main` for the public result.
+
+No unrelated source dirt was present. Ignored vendor inputs, extracted artwork, REA output, installed toolchains, generated caches and build products remain outside publication. No driver installation, registration, activation, filesystem mount, home-Mac access, disk-pack write, firmware execution, reset, flash, tag, deployment or app release occurred.
+
 ## Next safe slice
 
-Implement the remaining DriverKit controller lifecycle, mapped-buffer ownership, request publication, interrupts, synchronization, timeouts, and disconnect cleanup using the recovered structures. Prove them against mocked MMIO before a named spare-unit activation test. For BeyondRAID, establish member-image locations and generation selection, then validate CRC and known reconstructed bytes against real images. Collect read-only capacity records to establish byte units and pool scope before testing FSKit mount/statistics/Finder agreement. Keep hardware compatibility and public releases separate from software-only validation.
+Implement the actual DriverKit SCSI controller service, target/SCSI callbacks, storage-read path and inline identity/geometry, then connect the management engine without the original user client. Establish a verified bus-master drain mechanism, reset/sleep/wake policy, real interrupt delivery and hardware ordering before a named spare-unit activation test. For BeyondRAID, establish member-image locations and generation selection, then compare reconstructed bytes against real images. Collect read-only capacity records to establish byte units and pool scope before testing FSKit mount/statistics/Finder agreement. A smaller READ CAPACITY is not a safe way to change an existing HFS+ volume's statistics.
 
 ## Continuation
 
 ```text
 Repo: OpenDrobo; start with pwd, git branch --show-current, git rev-parse HEAD, git status --short --branch.
 Read: README.md -> docs/WORK_RECORD.md -> research/THUNDERBOLT_TRANSPORT.md -> research/BEYONDRAID_LAYOUT.md -> docs/CAPACITY_REPORTING.md.
-Truth: Rust/Tauri app still needs original live driver; independent offline probe/codecs and non-loading DriverKit adapter compile; no hardware/Finder proof.
-Scope: actual DriverKit transport lifecycle, capacity-unit lab evidence, RMR image locations/generations, FSKit read-only view.
+Truth: Rust/Tauri app still needs original live driver; independent offline probe/codecs and non-loading DMA/interrupt/management engine compile and pass mocks; no hardware/Finder proof.
+Scope: DriverKit SCSI service/storage/inline callbacks, proven DMA drain/lifecycle, capacity-unit lab evidence, RMR image locations/generations, FSKit read-only view.
 Do not: access home Mac, install/activate drivers or extensions, mount, flash, format, erase, mutate arrays, or publish vendor artifacts.
-Validate: make check; make build; fresh native/module review; hardware tests only on named spare plan.
+Validate: make check; scripts/check_driverkit.py after native changes; make build after app/package changes; fresh review; hardware only on named spare plan.
 Ledger: docs/WORK_RECORD.md; artifacts/reports; https://github.com/hypler-dev/OpenDrobo.
 ```
