@@ -32,11 +32,14 @@ def main() -> int:
         check("core-format", ["cargo", "fmt", "--check", "-p", "opendrobo-core"], target="cargo-target")
         check("core-tests", ["cargo", "test", "--locked", "-p", "opendrobo-core"], target="cargo-target")
         check("core-build", ["cargo", "build", "--locked", "-p", "opendrobo-core"], target="cargo-target")
+        check("probe-format", ["cargo", "fmt", "--check", "-p", "opendrobo-probe"], target="cargo-target")
+        check("probe-tests", ["cargo", "test", "--locked", "-p", "opendrobo-probe"], target="cargo-target")
         check("frontend-types", ["npm", "run", "check"], cwd=ROOT / "desktop")
         check("frontend-build", ["npm", "run", "build"], cwd=ROOT / "desktop")
         check("desktop-format", ["cargo", "fmt", "--manifest-path", "desktop/src-tauri/Cargo.toml", "--check"])
         check("desktop-tests", ["cargo", "test", "--locked", "--manifest-path", "desktop/src-tauri/Cargo.toml"])
         if platform.system() == "Darwin":
+            check("driverkit-contract", [sys.executable, "scripts/check_driverkit.py"])
             with tempfile.TemporaryDirectory(prefix="opendrobo-wire-") as temporary:
                 executable = f"{temporary}/wire-checks"
                 check("wire-build", ["xcrun", "clang", "-std=c11", "-Wall", "-Wextra", "-Werror", "-fsanitize=address,undefined", "platform/macos/transport/CapacityWire.c", "platform/macos/transport/Checks.c", "-o", executable])

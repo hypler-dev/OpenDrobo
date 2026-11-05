@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/opendrobo-core"]
+members = ["crates/opendrobo-core", "crates/opendrobo-probe"]
 exclude = ["desktop/src-tauri"]
 resolver = "2"
 

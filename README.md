@@ -39,6 +39,33 @@ The FSKit module implements an initial separate read-only filesystem view. It bi
 
 The Rust core and Tauri UI are intended for Linux and Windows. Their device adapters, filesystem modules, installers, and hardware compatibility are not implemented or tested. The macOS bridge still depends on the original Drobo management driver; this repository does not ship a replacement kernel or DriverKit storage driver.
 
+## Independent offline inspection
+
+New source components decode copied Thunderbolt port/queue frames and inspect
+an explicitly located BeyondRAID RMR header candidate. The offline probe does
+not require a Drobo driver. It reads regular files only; it does not scan live
+devices, map PCI memory, mount volumes, reconstruct array data, or establish
+protected capacity.
+
+```sh
+cargo build --locked -p opendrobo-probe
+cargo run --locked -p opendrobo-probe -- port path/to/copied-bar1.bin
+cargo run --locked -p opendrobo-probe -- rmr path/to/member-image.bin 0xOFFSET
+```
+
+Replace `0xOFFSET` with an independently established byte offset. The tool
+reads exactly one 8192-byte RMR window; it does not discover member locations
+or generations. An unbound result remains a candidate with unverified identity
+and `arrayValidated: false`. Port snapshots report virtual LUN ceilings and
+keep protected capacity unavailable. Native execution has been checked only
+on the local Apple silicon Mac. The probe rejects unverified host platforms
+until their regular-file opening policy is implemented.
+
+The initial read-only task adapter compiles against Apple's ARM64 DriverKit
+SDK, and its pure command policy has sanitizer checks. It is not a driver
+bundle or a replacement live transport. No original-driver-free hardware
+connection or Finder capacity change has been demonstrated.
+
 Original installers, firmware, driver binaries, extracted artwork, decompilation output, and tool runtimes remain ignored local research artifacts. Optional artwork is local input recorded in [research/vendor-artwork.json](research/vendor-artwork.json); redistribution rights are unverified, so vendor assets are excluded from public source. Builds without local artwork use project-owned fallbacks. OpenDrobo is not affiliated with Drobo or its successors.
 
-See the [work record](docs/WORK_RECORD.md), [capacity reporting](docs/CAPACITY_REPORTING.md), [recovered management ABI](research/MACOS_MANAGEMENT_ABI.md), [original-software findings](research/REVERSE_ENGINEERING.md), and [Thunderbolt/BeyondRAID research](research/STATIC_RECOVERY.md).
+See the [work record](docs/WORK_RECORD.md), [capacity reporting](docs/CAPACITY_REPORTING.md), [recovered management ABI](research/MACOS_MANAGEMENT_ABI.md), [independent transport recovery](research/THUNDERBOLT_TRANSPORT.md), [RMR layout](research/BEYONDRAID_LAYOUT.md), [original-software findings](research/REVERSE_ENGINEERING.md), and [earlier Thunderbolt/BeyondRAID research](research/STATIC_RECOVERY.md).

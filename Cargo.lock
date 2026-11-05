@@ -5,3 +5,10 @@ version = 4
 [[package]]
 name = "opendrobo-core"
 version = "0.1.0"
+
+[[package]]
+name = "opendrobo-probe"
+version = "0.1.0"
+dependencies = [
+ "opendrobo-core",
+]

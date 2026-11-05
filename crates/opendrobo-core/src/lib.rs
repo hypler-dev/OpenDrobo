@@ -15,6 +15,9 @@
 use core::fmt;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
+pub mod beyondraid;
+pub mod thunderbolt;
+
 const PAGE_CODE: u8 = 0x7a;
 const SUBPAGE_CODE: u8 = 0x02;
 const HEADER_BYTES: usize = 4;

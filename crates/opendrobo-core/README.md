@@ -40,3 +40,25 @@ zeroed.
 `od_capacity_validate` requires a non-null, aligned `ODCapacity` pointer valid
 for the call. It validates freshness first, then nonzero and internally
 consistent counts. No C ABI function retains either pointer.
+
+## Offline transport and metadata inspection
+
+`thunderbolt` decodes a copied BAR1 port directory, capabilities, and logical
+LUN table, and encodes/decodes request and versioned completion frames. It
+checks bounds, counts, arithmetic, and request/completion association. Logical
+byte totals are explicitly virtual ceilings; they are not protected capacity.
+The codec neither allocates DMA mappings nor dereferences or submits addresses.
+
+`beyondraid` inspects an explicit 8192-byte RMR header candidate using the
+recovered zero-seed/no-final-XOR CRC rule. Candidate structure and checksum
+matching do not validate a disk or array. Caller words and revision-two pack
+identity require separately supplied evidence; location, generation selection,
+redundancy, and data reconstruction remain unresolved.
+
+The `opendrobo-probe` workspace binary reads bounded windows from copied regular
+files and calls these APIs without requiring the original Drobo driver. It
+does not inspect live devices or mount a filesystem. See the
+[transport recovery](../../research/THUNDERBOLT_TRANSPORT.md) and
+[RMR layout](../../research/BEYONDRAID_LAYOUT.md) notes for exact evidence and
+limitations. These APIs have no new C ABI exports; the existing capacity ABI
+and its confirmation gate remain unchanged.

@@ -52,3 +52,23 @@ Before any Finder claim, spare enclosure test must establish:
 Raw capture uses `--capture-capacity-json <registry-id>` for lab work. It is hexadecimal evidence only and labels unit validation unverified. No destructive disk operation is authorized by this document.
 
 Rust core has 16 native ARM unit tests covering page/body bounds, scope flags, overlap-safe C ABI decoding, count validation, and record expiry. Historical `experiments/capacity` prototype retained 91 offline checks, including unit/scope/expiry rejection; it is not live transport path.
+
+## Driver-independence follow-up
+
+The [transport recovery](../research/THUNDERBOLT_TRANSPORT.md) now traces the
+separate storage, transport-manager, system-control, and in-driver paths. The
+original READ CAPACITY implementation derives geometry from the logical LUN
+table. The new port decoder therefore labels its byte totals as virtual
+ceilings; it never uses them to satisfy the protected-capacity confirmation.
+
+An ARM64 DriverKit task adapter now compiles against the installed SDK. Its
+read-only command policy distinguishes those geometry queries from the two
+vendor MODE SENSE pages. It performs no MMIO or DMA and is not a live backend.
+The application and FSKit provider still use the existing management bridge
+and retain the unconfirmed-unit gate.
+
+The [RMR follow-up](../research/BEYONDRAID_LAYOUT.md) resolves the metadata
+checksum window and supports offline header-candidate inspection. It does not
+recover pool usage or supply filesystem capacity. Member-image reconstruction
+and enclosure transport are distinct paths; neither offline result changes
+Finder reporting.
