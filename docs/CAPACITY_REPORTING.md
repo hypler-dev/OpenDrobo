@@ -67,13 +67,20 @@ vendor MODE SENSE pages. It performs no MMIO or DMA and is not a live backend.
 The application and FSKit provider still use the existing management bridge
 and retain the unconfirmed-unit gate.
 
-The follow-up adds a separately tested version-4 management queue, DMA lease
-ownership, firmware-defined interrupt operations, and compile-only SDK resource
-adapters. It can encode the allowlisted capacity/LUN-info requests against mocks;
-it is not wired into the live bridge. Storage-controller callbacks, storage reads,
-target creation, driver packaging, activation, and hardware validation remain
-open. Neither the virtual LUN table nor successful mock completion confirms the
-capacity record's units or changes Finder statistics.
+The follow-up includes separate version-4 storage/management queues, DMA lease
+ownership, firmware-defined interrupts, a real SDK/IIG SCSI service, target/task
+callbacks, and a locally linked ARM64 research `.dext`. The service can encode
+READ(10/16) and the allowlisted capacity/LUN-info requests against mocks. It also
+constructs bounded inline READ CAPACITY and REPORT LUNS responses from validated
+logical geometry. Those responses preserve the original virtual address space;
+they do not substitute protected pool capacity or shrink an existing HFS+ volume.
+
+The service is disabled in source before PCI open and is not wired into the
+application bridge. Unknown storage host-cookie semantics, DMA drain, complete
+SCSI/power behavior, provisioning, activation, and hardware validation remain
+open. Neither a linked bundle nor successful mock completion certifies byte
+units, measures OS file usage, or changes Finder statistics. The FSKit mount and
+unit/scope evidence gates above remain required.
 
 The [RMR follow-up](../research/BEYONDRAID_LAYOUT.md) resolves the metadata
 checksum window and supports offline header-candidate inspection. It does not

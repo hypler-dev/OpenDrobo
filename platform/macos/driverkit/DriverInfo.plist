@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+    <key>CFBundleIdentifier</key><string>dev.hypler.OpenDrobo.storage</string>
+    <key>CFBundleExecutable</key><string>OpenDroboStorage</string>
+    <key>CFBundleName</key><string>OpenDrobo Storage Research</string>
+    <key>CFBundlePackageType</key><string>DEXT</string>
+    <key>CFBundleShortVersionString</key><string>0.3.0</string>
+    <key>CFBundleVersion</key><string>1</string>
+    <key>OSBundleUsageDescription</key><string>Inactive, hardware-disabled OpenDrobo storage research component.</string>
+    <key>IOKitPersonalities</key><dict>
+        <key>OpenDrobo Read-only Storage</key><dict>
+            <key>IOClass</key><string>IOUserSCSIParallelInterfaceController</string>
+            <key>IOUserClass</key><string>OpenDroboSCSIController</string>
+            <key>IOProviderClass</key><string>IOPCIDevice</string>
+            <key>CFBundleIdentifierKernel</key><string>com.apple.iokit.IOSCSIParallelFamily</string>
+            <key>IOPCIPrimaryMatch</key><string>0x38444452 0x55704452</string>
+            <key>IOUserServerName</key><string>dev.hypler.OpenDrobo.storage</string>
+        </dict>
+    </dict>
+</dict></plist>

@@ -78,13 +78,23 @@ static int load_program(ODTBTController *c, uint32_t offset, ODTBTInterruptProgr
 
 ODTBTControllerStatus od_tbt_controller_init(ODTBTController *c, const ODTBTControllerIO *io,
                                             uint32_t bar0_bytes, uint32_t bar1_bytes) {
+    return od_tbt_controller_init_channel(c, io, bar0_bytes, bar1_bytes,
+                                          OD_TBT_CHANNEL_MANAGEMENT, 0);
+}
+ODTBTControllerStatus od_tbt_controller_init_channel(ODTBTController *c,
+                                                    const ODTBTControllerIO *io,
+                                                    uint32_t bar0_bytes, uint32_t bar1_bytes,
+                                                    ODTBTChannel channel, int external_summary) {
     if (!c || !io || !io->read32 || !io->write32 || !io->order || !io->write_request ||
-        bar0_bytes < 0x2187c || bar1_bytes < 0x44) return OD_TBT_CTL_ARGUMENT;
+        bar0_bytes < 0x2187c || bar1_bytes < 0x44 ||
+        (channel != OD_TBT_CHANNEL_STORAGE && channel != OD_TBT_CHANNEL_MANAGEMENT))
+        return OD_TBT_CTL_ARGUMENT;
     if (c->magic == CONTROLLER_MAGIC) return OD_TBT_CTL_STATE;
     ODTBTControllerIO copied = *io;
     memset(c, 0, sizeof(*c));
     c->magic = CONTROLLER_MAGIC;
     c->io = copied; c->bar0_bytes = bar0_bytes; c->bar1_bytes = bar1_bytes;
+    c->channel = channel; c->external_summary = external_summary != 0;
     c->next_transaction = 1;
     return OD_TBT_CTL_OK;
 }
@@ -94,7 +104,8 @@ int od_tbt_controller_running_for(const ODTBTController *c, const void *context)
 
 ODTBTControllerStatus od_tbt_controller_start(ODTBTController *c) {
     if (!valid(c) || c->state != OD_TBT_CTL_EMPTY) return OD_TBT_CTL_STATE;
-    uint32_t ready, sig[3], caps, luns, pci, endpoint, version, max_transactions, max_luns, block_size;
+    uint32_t ready, sig[3], caps, luns, pci, endpoint, version, max_transactions, max_luns;
+    uint32_t directory = c->channel == OD_TBT_CHANNEL_STORAGE ? 0x20 : 0x30;
     if (read_bar(c, 0, 0x21878, &ready)) return fault(c, OD_TBT_CTL_IO);
     if (ready == UINT32_MAX) { c->removed = 1; return fault(c, OD_TBT_CTL_IO); }
     if (ready & 0x200000U) return OD_TBT_CTL_NOT_READY;
@@ -103,7 +114,8 @@ ODTBTControllerStatus od_tbt_controller_start(ODTBTController *c) {
     if (sig[0] != 0x626f7244 || sig[1] != 0x726f506f || (sig[2] & 0xffffU) != 0x0074)
         return fault(c, OD_TBT_CTL_FORMAT);
     if (read_bar(c, 1, 0x18, &luns) || read_bar(c, 1, 0x1c, &caps) ||
-        read_bar(c, 1, 0x30, &c->request_offset) || read_bar(c, 1, 0x34, &c->response_offset) ||
+        read_bar(c, 1, directory, &c->request_offset) ||
+        read_bar(c, 1, directory + 4, &c->response_offset) ||
         read_bar(c, 1, 0x38, &pci) || read_bar(c, 1, 0x3c, &endpoint))
         return fault(c, OD_TBT_CTL_IO);
     Region regions[] = { {0, 0x44}, {caps, 64}, {luns, 32 * 16},
@@ -133,28 +145,57 @@ ODTBTControllerStatus od_tbt_controller_start(ODTBTController *c) {
         if (read_bar(c, 1, luns + i * 16, &enabled)) return fault(c, OD_TBT_CTL_IO);
         if ((i == 0 && !enabled) || (i && enabled)) return fault(c, OD_TBT_CTL_UNSUPPORTED);
     }
-    if (read_bar(c, 1, luns + 4, &block_size)) return fault(c, OD_TBT_CTL_IO);
-    if (block_size != 512) return fault(c, OD_TBT_CTL_UNSUPPORTED);
-    /* TM request: PCI entry 4; TM response: endpoint entry 1; the version-4
-     * summary cause is endpoint entry 5. Definition headers remain opaque. */
-    if (load_program(c, pci + 36 + 4 * 84, &c->request_interrupt) ||
-        load_program(c, endpoint + 36 + 84, &c->response_interrupt) ||
+    if (c->channel == OD_TBT_CHANNEL_STORAGE) {
+        uint32_t block_size, blocks_low, blocks_high;
+        if (read_bar(c, 1, luns + 4, &block_size) ||
+            read_bar(c, 1, luns + 8, &blocks_low) || read_bar(c, 1, luns + 12, &blocks_high))
+            return fault(c, OD_TBT_CTL_IO);
+        c->logical_blocks = (uint64_t)blocks_high << 32 | blocks_low;
+        if (block_size != 512 || !c->logical_blocks || c->logical_blocks > UINT64_MAX / 512U)
+            return fault(c, OD_TBT_CTL_UNSUPPORTED);
+    }
+    /* Storage uses PCI/endpoint entries 0/0; management uses 4/1. The shared
+     * version-4 summary cause remains endpoint entry 5. */
+    unsigned request_entry = c->channel == OD_TBT_CHANNEL_STORAGE ? 0 : 4;
+    unsigned response_entry = c->channel == OD_TBT_CHANNEL_STORAGE ? 0 : 1;
+    if (load_program(c, pci + 36 + request_entry * 84, &c->request_interrupt) ||
+        load_program(c, endpoint + 36 + response_entry * 84, &c->response_interrupt) ||
         load_program(c, endpoint + 36 + 5 * 84, &c->summary_interrupt))
         return fault(c, OD_TBT_CTL_FORMAT);
-    uint32_t request_state, response_state, summary_state;
+    uint32_t request_state, response_state, summary_state = 0;
     if (irq_state(c, &c->request_interrupt, &request_state) ||
         irq_state(c, &c->response_interrupt, &response_state) ||
-        irq_state(c, &c->summary_interrupt, &summary_state)) return fault(c, OD_TBT_CTL_IO);
+        (!c->external_summary && irq_state(c, &c->summary_interrupt, &summary_state)))
+        return fault(c, OD_TBT_CTL_IO);
     /* Never discard a stale response whose DMA owner is unknown. */
     if (request_state || response_state || summary_state) return fault(c, OD_TBT_CTL_NOT_READY);
     if (write_bar(c, 1, caps + 0x24, 1) || order(c)) return fault(c, OD_TBT_CTL_IO);
     c->device_interrupts_touched = 1;
-    if (action(c, &c->summary_interrupt, OD_TBT_INTERRUPT_CLEAR) ||
+    if ((!c->external_summary && action(c, &c->summary_interrupt, OD_TBT_INTERRUPT_CLEAR)) ||
         action(c, &c->response_interrupt, OD_TBT_INTERRUPT_CLEAR) ||
-        action(c, &c->summary_interrupt, OD_TBT_INTERRUPT_ENABLE))
+        (!c->external_summary && action(c, &c->summary_interrupt, OD_TBT_INTERRUPT_ENABLE)))
         return fault(c, OD_TBT_CTL_IO);
     c->state = OD_TBT_CTL_RUNNING;
     return OD_TBT_CTL_OK;
+}
+
+static ODTBTControllerStatus summary_action(ODTBTController *c, ODTBTInterruptAction operation) {
+    if (!valid(c) || c->state != OD_TBT_CTL_RUNNING || c->removed) return OD_TBT_CTL_STATE;
+    return action(c, &c->summary_interrupt, operation) ? fault(c, OD_TBT_CTL_IO) : OD_TBT_CTL_OK;
+}
+ODTBTControllerStatus od_tbt_controller_summary_clear(ODTBTController *c) {
+    return summary_action(c, OD_TBT_INTERRUPT_CLEAR);
+}
+ODTBTControllerStatus od_tbt_controller_summary_enable(ODTBTController *c) {
+    return summary_action(c, OD_TBT_INTERRUPT_ENABLE);
+}
+ODTBTControllerStatus od_tbt_controller_summary_disable(ODTBTController *c) {
+    return summary_action(c, OD_TBT_INTERRUPT_DISABLE);
+}
+ODTBTControllerStatus od_tbt_controller_summary_state(ODTBTController *c, uint32_t *state) {
+    if (!state) return OD_TBT_CTL_ARGUMENT;
+    if (!valid(c) || c->state != OD_TBT_CTL_RUNNING || c->removed) return OD_TBT_CTL_STATE;
+    return irq_state(c, &c->summary_interrupt, state) ? fault(c, OD_TBT_CTL_IO) : OD_TBT_CTL_OK;
 }
 
 static int single_prepared(const ODDmaLease *lease, uint64_t bytes) {
@@ -187,8 +228,10 @@ ODTBTControllerStatus od_tbt_controller_submit(ODTBTController *c, const ODTBTTa
                                              uint64_t now_ms, uint64_t deadline_ms,
                                              uint32_t *transaction) {
     if (!valid(c) || c->state != OD_TBT_CTL_RUNNING) return OD_TBT_CTL_STATE;
+    uint32_t request_bytes = c->channel == OD_TBT_CHANNEL_STORAGE ?
+                             OD_TBT_STORAGE_REQUEST_BYTES : OD_TBT_TM_REQUEST_BYTES;
     if (!task || !transaction ||
-        !single_prepared(request, OD_TBT_TM_REQUEST_BYTES) ||
+        !single_prepared(request, request_bytes) ||
         !single_prepared(payload, task->requested_bytes) ||
         request->device_access != (OD_DMA_DEVICE_READ | OD_DMA_DEVICE_WRITE) ||
         !(payload->device_access & OD_DMA_DEVICE_WRITE) || !same_dma_backend(request, payload) ||
@@ -199,7 +242,12 @@ ODTBTControllerStatus od_tbt_controller_submit(ODTBTController *c, const ODTBTTa
     input.buffer_iovm_address = payload->segments[0].address;
     ODTBTReadPlan plan;
     if (od_tbt_plan_read_only(&input, 512, c->max_transfer, &plan) != OD_TBT_PLAN_OK ||
-        plan.channel != OD_TBT_CHANNEL_MANAGEMENT || plan.transfer_bytes != input.requested_bytes)
+        plan.channel != c->channel || plan.transfer_bytes != input.requested_bytes)
+        return OD_TBT_CTL_UNSUPPORTED;
+    if (c->channel == OD_TBT_CHANNEL_STORAGE &&
+        (plan.logical_block >= c->logical_blocks ||
+         plan.block_count > c->logical_blocks - plan.logical_block ||
+         plan.transfer_bytes != (uint64_t)plan.block_count * 512U))
         return OD_TBT_CTL_UNSUPPORTED;
     unsigned index;
     for (index = 0; index < c->window && c->slots[index].request; ++index) { }
@@ -217,17 +265,31 @@ ODTBTControllerStatus od_tbt_controller_submit(ODTBTController *c, const ODTBTTa
     if (state) return OD_TBT_CTL_NOT_READY;
     c->last_time_ms = now_ms;
     const uint32_t tx = c->next_transaction++;
-    uint8_t body[OD_TBT_TM_REQUEST_BYTES] = {0};
+    uint8_t body[OD_TBT_STORAGE_REQUEST_BYTES] = {0};
     le64(body, request->segments[0].address);
     le32(body + 8, index); le32(body + 12, tx);
     le64(body + 16, input.controller_task_id); // Opaque cookie, never a host pointer.
-    le32(body + 24, sizeof(body)); le32(body + 28, 3);
-    le32(body + 32, 0x410028); // Data-in, one direct DMA segment.
-    le32(body + 36, (uint32_t)plan.transfer_bytes);
-    le64(body + 40, payload->segments[0].address);
-    memcpy(body + 48, plan.cdb, plan.cdb_length);
-    le64(body + 88, payload->segments[0].address);
-    if (c->io.write_request(c->io.context, request, body, sizeof(body)))
+    le32(body + 24, request_bytes);
+    if (c->channel == OD_TBT_CHANNEL_STORAGE) {
+        le32(body + 28, 1);
+        le32(body + 48, 0x400032); // Data-in, one SGL entry.
+        le32(body + 52, (uint32_t)plan.transfer_bytes);
+        /* +0x38 is a firmware-opaque host SGL cookie. It remains zero: no CPU
+         * pointer is emitted. LUN 0 is represented by its zeroed +0x40 word. */
+        le32(body + 72, plan.block_count);
+        le64(body + 80, plan.logical_block);
+        le64(body + 96, tx);
+        le64(body + 128, payload->segments[0].address);
+        le32(body + 136, (uint32_t)plan.transfer_bytes);
+    } else {
+        le32(body + 28, 3);
+        le32(body + 32, 0x410028); // Data-in, one direct DMA segment.
+        le32(body + 36, (uint32_t)plan.transfer_bytes);
+        le64(body + 40, payload->segments[0].address);
+        memcpy(body + 48, plan.cdb, plan.cdb_length);
+        le64(body + 88, payload->segments[0].address);
+    }
+    if (c->io.write_request(c->io.context, request, body, request_bytes))
         return fault(c, OD_TBT_CTL_DMA);
     ODTBTControllerSlot slot = {request, payload, input.controller_task_id,
                                deadline_ms, plan.transfer_bytes, tx};
@@ -239,7 +301,7 @@ ODTBTControllerStatus od_tbt_controller_submit(ODTBTController *c, const ODTBTTa
         od_dma_lease_publish(payload) != OD_DMA_STATUS_OK) return fault(c, OD_TBT_CTL_DMA);
     if (order(c) || write_bar(c, 1, c->request_offset + 8, (uint32_t)request->segments[0].address) ||
         write_bar(c, 1, c->request_offset + 12, 0) ||
-        write_bar(c, 1, c->request_offset + 16, sizeof(body)) ||
+        write_bar(c, 1, c->request_offset + 16, request_bytes) ||
         write_bar(c, 1, c->request_offset + 20, tx) || order(c) ||
         write_bar(c, 1, c->request_offset + 4, 1) || order(c) ||
         action(c, &c->request_interrupt, OD_TBT_INTERRUPT_TRIGGER)) return fault(c, OD_TBT_CTL_IO);
@@ -291,7 +353,7 @@ ODTBTControllerStatus od_tbt_controller_poll(ODTBTController *c, uint64_t now_ms
     /* Validate the entire batch before acknowledging or unmapping anything.
      * Unknown words +0x10/+0x1c are preserved as uninterpreted protocol data. */
     if (order(c) || action(c, &c->response_interrupt, OD_TBT_INTERRUPT_CLEAR) ||
-        action(c, &c->summary_interrupt, OD_TBT_INTERRUPT_CLEAR) || order(c))
+        (!c->external_summary && action(c, &c->summary_interrupt, OD_TBT_INTERRUPT_CLEAR)) || order(c))
         return fault(c, OD_TBT_CTL_IO);
     for (uint32_t i = 0; i < length; ++i) {
         ODTBTControllerSlot *s = c->slots + indices[i];
@@ -315,9 +377,9 @@ ODTBTControllerStatus od_tbt_controller_begin_stop(ODTBTController *c, int remov
         if (ready == UINT32_MAX) { c->removed = 1; return OD_TBT_CTL_IO; }
         /* Startup may fail AFTER the enable write reached hardware. The
          * explicit shutdown event masks that partially enabled device too. */
-        if (action(c, &c->summary_interrupt, OD_TBT_INTERRUPT_DISABLE) ||
+        if ((!c->external_summary && action(c, &c->summary_interrupt, OD_TBT_INTERRUPT_DISABLE)) ||
             action(c, &c->response_interrupt, OD_TBT_INTERRUPT_DISABLE) ||
-            action(c, &c->summary_interrupt, OD_TBT_INTERRUPT_CLEAR) ||
+            (!c->external_summary && action(c, &c->summary_interrupt, OD_TBT_INTERRUPT_CLEAR)) ||
             action(c, &c->response_interrupt, OD_TBT_INTERRUPT_CLEAR)) return OD_TBT_CTL_IO;
         c->device_interrupts_touched = 0;
     }

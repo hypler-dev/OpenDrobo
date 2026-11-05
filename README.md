@@ -61,15 +61,24 @@ keep protected capacity unavailable. Native execution has been checked only
 on the local Apple silicon Mac. The probe rejects unverified host platforms
 until their regular-file opening policy is implemented.
 
-The non-loading DriverKit components now include DMA ownership, firmware-defined
-interrupt operations, a version-4 read-only management queue, and SDK PCI/interrupt
-resource adapters. Seven ARM64 SDK objects compile; four sanitizer suites check
-mocked mapping, publication, completion, timeout, and removal failures. DMA writes
-use the SDK's prepared mapping. Uncertain preparations retain resources for
-cleanup; published timeouts and removals quarantine their mappings.
-The app still uses the original driver: these components have no storage-controller
-service/bundle, hardware activation, or Finder capacity proof. See the
-[transport findings](research/THUNDERBOLT_TRANSPORT.md) for exact scope and remaining work.
+The non-loading DriverKit research now includes a real IIG SCSI controller
+subclass, target and asynchronous task callbacks, separate version-4 storage and
+management queues, and inline logical-geometry responses. Eleven ARM64 objects
+compile/link; six sanitizer suites check synthetic mapping, framing, callback
+ownership, completion, timeout, and removal behavior.
+
+```sh
+python3 scripts/build_driverkit.py
+```
+
+This creates a local research artifact at
+`artifacts/driverkit/OpenDroboStorage.dext`. Hardware execution is disabled in
+source before PCI open or framework startup; no runtime setting or plist value
+enables it. Storage host-cookie semantics, DMA drain, full SCSI behavior, power/reset
+handling, provisioning, and hardware validation remain open. The bundle is not
+embedded, installed, activated, or published. The application still uses the
+original driver and Finder reporting is unchanged. See the
+[transport findings](research/THUNDERBOLT_TRANSPORT.md) for evidence and limits.
 
 Original installers, firmware, driver binaries, extracted artwork, decompilation output, and tool runtimes remain ignored local research artifacts. Optional artwork is local input recorded in [research/vendor-artwork.json](research/vendor-artwork.json); redistribution rights are unverified, so vendor assets are excluded from public source. Builds without local artwork use project-owned fallbacks. OpenDrobo is not affiliated with Drobo or its successors.
 

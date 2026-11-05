@@ -6,7 +6,10 @@
 /* Explicitly synthetic registers and IOVA mappings. No device is opened. */
 enum { BAR0_BYTES = 0x22000, BAR1_BYTES = 0x2000,
        REQUEST = 0xc00, RESPONSE = 0x1000, REQ_IRQ = 0x100,
-       RSP_IRQ = 0x200, SUMMARY_IRQ = 0x300, TRACE_CAPACITY = 2048 };
+       RSP_IRQ = 0x200, SUMMARY_IRQ = 0x300,
+       STORAGE_REQUEST = 0xe00, STORAGE_RESPONSE = 0x1400,
+       STORAGE_REQ_IRQ = 0x400, STORAGE_RSP_IRQ = 0x500,
+       TRACE_CAPACITY = 2048 };
 typedef struct { uint8_t kind, bar; uint32_t offset, value; } Event;
 typedef struct { uint64_t address, bytes; unsigned retains, prepared, access; uint8_t cpu[512]; } Buffer;
 typedef struct { Buffer *buffer; unsigned prepared; } Command;
@@ -83,21 +86,27 @@ static void definition(Fixture *f, uint32_t where, uint32_t address) {
     };
     memcpy((uint8_t *)f->bar1 + where, words, sizeof(words));
 }
-static void fixture(Fixture *f, int start) {
+static void fixture_channel(Fixture *f, int start, ODTBTChannel channel, int external_summary) {
     memset(f, 0, sizeof(*f));
     memcpy(f->bar1, "DroboPort\0\xab\xcd", 12);
     put32(f->bar1, 0x18, 0x100); put32(f->bar1, 0x1c, 0x80);
     put32(f->bar1, 0x30, REQUEST); put32(f->bar1, 0x34, RESPONSE);
+    put32(f->bar1, 0x20, STORAGE_REQUEST); put32(f->bar1, 0x24, STORAGE_RESPONSE);
     put32(f->bar1, 0x38, 0x400); put32(f->bar1, 0x3c, 0x800);
     put32(f->bar1, 0x80, 4); put32(f->bar1, 0x88, 1024 * 1024); put32(f->bar1, 0x8c, 4);
     put32(f->bar1, 0x90, 32);
     put32(f->bar1, 0x100, 1); put32(f->bar1, 0x104, 512);
+    put32(f->bar1, 0x108, 4096); put32(f->bar1, 0x10c, 0);
     put32(f->bar1, REQUEST, 4);
+    put32(f->bar1, STORAGE_REQUEST, 4);
     definition(f, 0x400 + 36 + 4 * 84, REQ_IRQ);
     definition(f, 0x800 + 36 + 84, RSP_IRQ);
+    definition(f, 0x400 + 36, STORAGE_REQ_IRQ);
+    definition(f, 0x800 + 36, STORAGE_RSP_IRQ);
     definition(f, 0x800 + 36 + 5 * 84, SUMMARY_IRQ);
     ODTBTControllerIO io = {f, read32, write32, barrier, write_request};
-    assert(od_tbt_controller_init(&f->controller, &io, BAR0_BYTES, BAR1_BYTES) == OD_TBT_CTL_OK);
+    assert(od_tbt_controller_init_channel(&f->controller, &io, BAR0_BYTES, BAR1_BYTES,
+                                          channel, external_summary) == OD_TBT_CTL_OK);
     assert(od_dma_lease_init(&f->request) == OD_DMA_STATUS_OK);
     assert(od_dma_lease_init(&f->payload) == OD_DMA_STATUS_OK);
     f->request_buffer.address = 0x100000; f->request_buffer.bytes = OD_TBT_TM_REQUEST_BYTES;
@@ -105,12 +114,24 @@ static void fixture(Fixture *f, int start) {
     f->request_buffer.access = f->payload_buffer.access = OD_DMA_DEVICE_READ | OD_DMA_DEVICE_WRITE;
     if (start) assert(od_tbt_controller_start(&f->controller) == OD_TBT_CTL_OK);
 }
+static void fixture(Fixture *f, int start) {
+    fixture_channel(f, start, OD_TBT_CHANNEL_MANAGEMENT, 0);
+}
 static void map_buffers(Fixture *f) {
     ODDmaBackend backend = {f, retain_memory, release_memory, create_command, release_command,
                             prepare, complete};
     assert(od_dma_lease_prepare(&f->request, &backend, &f->request_buffer, 0,
                                OD_TBT_TM_REQUEST_BYTES) == OD_DMA_STATUS_OK);
     assert(od_dma_lease_prepare(&f->payload, &backend, &f->payload_buffer, 0, 512) == OD_DMA_STATUS_OK);
+}
+static void map_buffers_exact(Fixture *f, uint32_t request_bytes, uint32_t payload_bytes) {
+    ODDmaBackend backend = {f, retain_memory, release_memory, create_command, release_command,
+                            prepare, complete};
+    f->request_buffer.bytes = request_bytes; f->payload_buffer.bytes = payload_bytes;
+    assert(od_dma_lease_prepare(&f->request, &backend, &f->request_buffer, 0,
+                               request_bytes) == OD_DMA_STATUS_OK);
+    assert(od_dma_lease_prepare(&f->payload, &backend, &f->payload_buffer, 0,
+                               payload_bytes) == OD_DMA_STATUS_OK);
 }
 static ODTBTTaskInput task(void) {
     ODTBTTaskInput t = {0};
@@ -130,6 +151,38 @@ static void response(Fixture *f, uint32_t tx, uint32_t srb, uint32_t scsi) {
     put32(f->bar1, RESPONSE + 8, 0); put32(f->bar1, RESPONSE + 12, tx);
     put32(f->bar1, RESPONSE + 16, 512); put32(f->bar1, RESPONSE + 20, 0);
     put32(f->bar1, RESPONSE + 28, srb); put32(f->bar1, RESPONSE + 32, scsi);
+}
+static void storage_response(Fixture *f, uint32_t tx, uint32_t bytes) {
+    put32(f->bar0, STORAGE_REQ_IRQ, 0); put32(f->bar0, STORAGE_RSP_IRQ, 1); put32(f->bar0, SUMMARY_IRQ, 1);
+    put32(f->bar1, STORAGE_RESPONSE + 4, 1);
+    put32(f->bar1, STORAGE_RESPONSE + 8, 0); put32(f->bar1, STORAGE_RESPONSE + 12, tx);
+    put32(f->bar1, STORAGE_RESPONSE + 16, bytes); put32(f->bar1, STORAGE_RESPONSE + 20, 0);
+    put32(f->bar1, STORAGE_RESPONSE + 28, 1); put32(f->bar1, STORAGE_RESPONSE + 32, 0);
+}
+static ODTBTTaskInput read10(uint32_t lba, uint16_t blocks) {
+    ODTBTTaskInput t = {0};
+    t.version = 1; t.direction = 2; t.requested_bytes = (uint64_t)blocks * 512;
+    t.buffer_iovm_address = UINT64_MAX; t.controller_task_id = UINT64_C(0x1122334455667788);
+    t.cdb_length = 10; t.cdb[0] = 0x28;
+    t.cdb[2] = (uint8_t)(lba >> 24); t.cdb[3] = (uint8_t)(lba >> 16);
+    t.cdb[4] = (uint8_t)(lba >> 8); t.cdb[5] = (uint8_t)lba;
+    t.cdb[7] = (uint8_t)(blocks >> 8); t.cdb[8] = (uint8_t)blocks;
+    return t;
+}
+static ODTBTTaskInput read16(uint64_t lba, uint32_t blocks) {
+    ODTBTTaskInput t = {0};
+    t.version = 1; t.direction = 2; t.requested_bytes = (uint64_t)blocks * 512;
+    t.buffer_iovm_address = UINT64_MAX; t.controller_task_id = UINT64_C(0x8877665544332211);
+    t.cdb_length = 16; t.cdb[0] = 0x88;
+    for (unsigned i = 0; i < 8; ++i) t.cdb[2 + i] = (uint8_t)(lba >> ((7 - i) * 8));
+    for (unsigned i = 0; i < 4; ++i) t.cdb[10 + i] = (uint8_t)(blocks >> ((3 - i) * 8));
+    return t;
+}
+static unsigned writes_at(const Fixture *f, uint8_t bar, uint32_t offset) {
+    unsigned count = 0;
+    for (unsigned i = 0; i < f->trace_count; ++i)
+        if (f->trace[i].kind == 'w' && f->trace[i].bar == bar && f->trace[i].offset == offset) ++count;
+    return count;
 }
 static size_t finish(Fixture *f, int drained, int quiescent, ODTBTControllerStatus expected) {
     ODTBTControllerCompletion results[OD_TBT_CONTROLLER_SLOTS]; size_t count = 999;
@@ -172,6 +225,18 @@ static void success_and_wire(void) {
     assert(finish(&f, 0, 0, OD_TBT_CTL_NOT_READY) == 0);
     assert(finish(&f, 1, 0, OD_TBT_CTL_OK) == 0);
     assert(od_tbt_controller_start(&f.controller) == OD_TBT_CTL_STATE);
+}
+static void legacy_management_init_stays_owned(void) {
+    Fixture f; fixture_channel(&f, 0, OD_TBT_CHANNEL_MANAGEMENT, 0);
+    memset(&f.controller, 0, sizeof(f.controller));
+    ODTBTControllerIO io = {&f, read32, write32, barrier, write_request};
+    assert(od_tbt_controller_init(&f.controller, &io, BAR0_BYTES, BAR1_BYTES) == OD_TBT_CTL_OK);
+    assert(od_tbt_controller_start(&f.controller) == OD_TBT_CTL_OK);
+    assert(f.controller.channel == OD_TBT_CHANNEL_MANAGEMENT && !f.controller.external_summary &&
+           f.bar1[0xa4 / 4] == 1 && f.bar0[(SUMMARY_IRQ + 4) / 4] == 1);
+    map_buffers(&f); uint32_t tx;
+    assert(submit(&f, &tx) == OD_TBT_CTL_OK && f.bar1[(REQUEST + 16) / 4] == OD_TBT_TM_REQUEST_BYTES &&
+           f.bar1[(STORAGE_REQUEST + 16) / 4] == 0 && f.bar0[REQ_IRQ / 4] && !f.bar0[STORAGE_REQ_IRQ / 4]);
 }
 static void publication_failure_matrix(void) {
     Fixture f; fixture(&f, 1); map_buffers(&f);
@@ -378,11 +443,151 @@ static void foreign_dma_provider(void) {
     assert(od_dma_lease_abort_unpublished(&foreign.request) == OD_DMA_STATUS_OK);
     assert(od_dma_lease_abort_unpublished(&foreign.payload) == OD_DMA_STATUS_OK);
 }
+static void storage_wire_and_gates(void) {
+    Fixture f; fixture_channel(&f, 1, OD_TBT_CHANNEL_STORAGE, 0);
+    map_buffers_exact(&f, OD_TBT_STORAGE_REQUEST_BYTES, 512);
+    ODTBTTaskInput t = read10(3, 1); uint32_t tx = 0;
+    assert(od_tbt_controller_submit(&f.controller, &t, &f.request, &f.payload,
+                                    10, 100, &tx) == OD_TBT_CTL_OK && tx == 1);
+    const uint8_t expected[OD_TBT_STORAGE_REQUEST_BYTES] = {
+        [2] = 0x10, [12] = 1, [16] = 0x88, [17] = 0x77, [18] = 0x66,
+        [19] = 0x55, [20] = 0x44, [21] = 0x33, [22] = 0x22, [23] = 0x11,
+        [24] = 0x90, [28] = 1, [48] = 0x32, [50] = 0x40, [53] = 2,
+        [72] = 1, [80] = 3, [96] = 1, [130] = 0x20, [137] = 2
+    };
+    assert(!memcmp(f.request_buffer.cpu, expected, sizeof(expected)));
+    assert(!f.request_buffer.cpu[56] && !f.request_buffer.cpu[57] &&
+           !f.request_buffer.cpu[58] && !f.request_buffer.cpu[59]);
+    assert(f.bar1[(STORAGE_REQUEST + 16) / 4] == OD_TBT_STORAGE_REQUEST_BYTES &&
+           f.bar1[(REQUEST + 16) / 4] == 0 && f.bar0[STORAGE_REQ_IRQ / 4] &&
+           !f.bar0[REQ_IRQ / 4]);
+    storage_response(&f, tx, 512);
+    ODTBTControllerCompletion results[OD_TBT_CONTROLLER_SLOTS]; size_t count;
+    assert(od_tbt_controller_poll(&f.controller, 20, results, OD_TBT_CONTROLLER_SLOTS, &count) == OD_TBT_CTL_OK);
+    assert(count == 1 && results[0].succeeded && results[0].task_id == t.controller_task_id);
+
+    assert(od_dma_lease_init(&f.request) == OD_DMA_STATUS_OK);
+    assert(od_dma_lease_init(&f.payload) == OD_DMA_STATUS_OK);
+    map_buffers_exact(&f, OD_TBT_STORAGE_REQUEST_BYTES, 512);
+    t = read16(3, 1);
+    assert(od_tbt_controller_submit(&f.controller, &t, &f.request, &f.payload,
+                                    21, 100, &tx) == OD_TBT_CTL_OK && tx == 2);
+    assert(f.request_buffer.cpu[28] == 1 && f.request_buffer.cpu[72] == 1 &&
+           f.request_buffer.cpu[80] == 3 && f.request_buffer.cpu[96] == 2);
+    storage_response(&f, tx, 512);
+    assert(od_tbt_controller_poll(&f.controller, 22, results, OD_TBT_CONTROLLER_SLOTS, &count) == OD_TBT_CTL_OK &&
+           count == 1 && results[0].succeeded);
+
+    Fixture zero; fixture_channel(&zero, 0, OD_TBT_CHANNEL_STORAGE, 0);
+    put32(zero.bar1, 0x108, 0);
+    assert(od_tbt_controller_start(&zero.controller) == OD_TBT_CTL_UNSUPPORTED);
+    Fixture overflow; fixture_channel(&overflow, 0, OD_TBT_CHANNEL_STORAGE, 0);
+    put32(overflow.bar1, 0x10c, 0x80000000U);
+    assert(od_tbt_controller_start(&overflow.controller) == OD_TBT_CTL_UNSUPPORTED);
+    Fixture bad_block_size; fixture_channel(&bad_block_size, 0, OD_TBT_CHANNEL_STORAGE, 0);
+    put32(bad_block_size.bar1, 0x104, 4096);
+    assert(od_tbt_controller_start(&bad_block_size.controller) == OD_TBT_CTL_UNSUPPORTED);
+
+    Fixture bounds; fixture_channel(&bounds, 0, OD_TBT_CHANNEL_STORAGE, 0);
+    put32(bounds.bar1, 0x108, 4);
+    assert(od_tbt_controller_start(&bounds.controller) == OD_TBT_CTL_OK);
+    map_buffers_exact(&bounds, OD_TBT_STORAGE_REQUEST_BYTES, 512);
+    t = read10(4, 1); unsigned before = bounds.operation;
+    assert(od_tbt_controller_submit(&bounds.controller, &t, &bounds.request, &bounds.payload,
+                                    10, 100, &tx) == OD_TBT_CTL_UNSUPPORTED && bounds.operation == before);
+    assert(od_dma_lease_abort_unpublished(&bounds.request) == OD_DMA_STATUS_OK);
+    assert(od_dma_lease_abort_unpublished(&bounds.payload) == OD_DMA_STATUS_OK);
+
+    Fixture overrun; fixture_channel(&overrun, 0, OD_TBT_CHANNEL_STORAGE, 0);
+    put32(overrun.bar1, 0x108, 4);
+    assert(od_tbt_controller_start(&overrun.controller) == OD_TBT_CTL_OK);
+    map_buffers_exact(&overrun, OD_TBT_STORAGE_REQUEST_BYTES, 1024);
+    t = read10(3, 2);
+    assert(od_tbt_controller_submit(&overrun.controller, &t, &overrun.request, &overrun.payload,
+                                    10, 100, &tx) == OD_TBT_CTL_UNSUPPORTED);
+    assert(od_dma_lease_abort_unpublished(&overrun.request) == OD_DMA_STATUS_OK);
+    assert(od_dma_lease_abort_unpublished(&overrun.payload) == OD_DMA_STATUS_OK);
+
+    Fixture readonly; fixture_channel(&readonly, 1, OD_TBT_CHANNEL_STORAGE, 0);
+    map_buffers_exact(&readonly, OD_TBT_STORAGE_REQUEST_BYTES, 512);
+    t = read10(0, 1); t.direction = 1; t.cdb[0] = 0x2a;
+    assert(od_tbt_controller_submit(&readonly.controller, &t, &readonly.request, &readonly.payload,
+                                    10, 100, &tx) == OD_TBT_CTL_UNSUPPORTED);
+    assert(od_dma_lease_abort_unpublished(&readonly.request) == OD_DMA_STATUS_OK);
+    assert(od_dma_lease_abort_unpublished(&readonly.payload) == OD_DMA_STATUS_OK);
+
+    Fixture exact_bytes; fixture_channel(&exact_bytes, 1, OD_TBT_CHANNEL_STORAGE, 0);
+    map_buffers_exact(&exact_bytes, OD_TBT_STORAGE_REQUEST_BYTES, 1024);
+    t = read10(0, 1); t.requested_bytes = 1024; unsigned exact_before = exact_bytes.operation;
+    assert(od_tbt_controller_submit(&exact_bytes.controller, &t, &exact_bytes.request, &exact_bytes.payload,
+                                    10, 100, &tx) == OD_TBT_CTL_UNSUPPORTED &&
+           exact_bytes.operation == exact_before);
+    t = read16(0, 1); t.requested_bytes = 1024;
+    assert(od_tbt_controller_submit(&exact_bytes.controller, &t, &exact_bytes.request, &exact_bytes.payload,
+                                    10, 100, &tx) == OD_TBT_CTL_UNSUPPORTED &&
+           exact_bytes.operation == exact_before);
+    assert(od_dma_lease_abort_unpublished(&exact_bytes.request) == OD_DMA_STATUS_OK);
+    assert(od_dma_lease_abort_unpublished(&exact_bytes.payload) == OD_DMA_STATUS_OK);
+
+    Fixture storage_mismatch; fixture_channel(&storage_mismatch, 1, OD_TBT_CHANNEL_STORAGE, 0);
+    map_buffers_exact(&storage_mismatch, OD_TBT_STORAGE_REQUEST_BYTES, 512);
+    t = task();
+    assert(od_tbt_controller_submit(&storage_mismatch.controller, &t,
+                                    &storage_mismatch.request, &storage_mismatch.payload,
+                                    10, 100, &tx) == OD_TBT_CTL_UNSUPPORTED);
+    assert(od_dma_lease_abort_unpublished(&storage_mismatch.request) == OD_DMA_STATUS_OK);
+    assert(od_dma_lease_abort_unpublished(&storage_mismatch.payload) == OD_DMA_STATUS_OK);
+
+    Fixture management; fixture(&management, 1); map_buffers(&management);
+    t = read10(0, 1);
+    assert(od_tbt_controller_submit(&management.controller, &t, &management.request, &management.payload,
+                                    10, 100, &tx) == OD_TBT_CTL_UNSUPPORTED);
+    assert(od_dma_lease_abort_unpublished(&management.request) == OD_DMA_STATUS_OK);
+    assert(od_dma_lease_abort_unpublished(&management.payload) == OD_DMA_STATUS_OK);
+}
+static void external_summary_is_service_owned(void) {
+    Fixture management; fixture_channel(&management, 1, OD_TBT_CHANNEL_MANAGEMENT, 1);
+    assert(!writes_at(&management, 0, SUMMARY_IRQ) && !writes_at(&management, 0, SUMMARY_IRQ + 4));
+    assert(od_tbt_controller_begin_stop(&management.controller, 0) == OD_TBT_CTL_OK);
+    assert(!writes_at(&management, 0, SUMMARY_IRQ) && !writes_at(&management, 0, SUMMARY_IRQ + 4));
+
+    Fixture storage; fixture_channel(&storage, 1, OD_TBT_CHANNEL_STORAGE, 1);
+    uint32_t summary_state = UINT32_MAX;
+    assert(od_tbt_controller_summary_state(&storage.controller, &summary_state) == OD_TBT_CTL_OK &&
+           summary_state == 0);
+    put32(storage.bar0, SUMMARY_IRQ, 1);
+    assert(od_tbt_controller_summary_state(&storage.controller, &summary_state) == OD_TBT_CTL_OK &&
+           summary_state == 1);
+    assert(!writes_at(&storage, 0, SUMMARY_IRQ) && !writes_at(&storage, 0, SUMMARY_IRQ + 4));
+    put32(storage.bar0, SUMMARY_IRQ, 0);
+    map_buffers_exact(&storage, OD_TBT_STORAGE_REQUEST_BYTES, 512);
+    ODTBTTaskInput t = read10(0, 1); uint32_t tx;
+    assert(od_tbt_controller_submit(&storage.controller, &t, &storage.request, &storage.payload,
+                                    10, 100, &tx) == OD_TBT_CTL_OK);
+    storage_response(&storage, tx, 512);
+    ODTBTControllerCompletion results[OD_TBT_CONTROLLER_SLOTS]; size_t count;
+    assert(od_tbt_controller_poll(&storage.controller, 20, results, OD_TBT_CONTROLLER_SLOTS, &count) == OD_TBT_CTL_OK &&
+           count == 1);
+    assert(!writes_at(&storage, 0, SUMMARY_IRQ) && !writes_at(&storage, 0, SUMMARY_IRQ + 4));
+    assert(od_tbt_controller_summary_clear(&storage.controller) == OD_TBT_CTL_OK);
+    assert(writes_at(&storage, 0, SUMMARY_IRQ));
+    assert(od_tbt_controller_summary_enable(&storage.controller) == OD_TBT_CTL_OK);
+    assert(writes_at(&storage, 0, SUMMARY_IRQ + 4));
+    assert(od_tbt_controller_summary_disable(&storage.controller) == OD_TBT_CTL_OK);
+    assert(od_tbt_controller_begin_stop(&storage.controller, 0) == OD_TBT_CTL_OK);
+
+    Fixture removed; fixture_channel(&removed, 1, OD_TBT_CHANNEL_STORAGE, 1);
+    put32(removed.bar0, SUMMARY_IRQ, UINT32_MAX);
+    assert(od_tbt_controller_summary_state(&removed.controller, &summary_state) == OD_TBT_CTL_IO &&
+           removed.controller.removed && removed.controller.state == OD_TBT_CTL_QUIESCING);
+    assert(!writes_at(&removed, 0, SUMMARY_IRQ) && !writes_at(&removed, 0, SUMMARY_IRQ + 4));
+}
 int main(void) {
-    success_and_wire(); publication_failure_matrix(); malformed_and_status_completions();
+    success_and_wire(); legacy_management_init_stays_owned(); publication_failure_matrix(); malformed_and_status_completions();
     timeout_removal_and_completion_retry(); start_and_command_gates(); partial_start_and_stop_retry();
     multiple_slots_and_stale_reuse();
     foreign_dma_provider();
-    puts("PASS: controller handshake, wire bytes, completion association, timeout, removal, and drain gates");
+    storage_wire_and_gates(); external_summary_is_service_owned();
+    puts("PASS: controller handshake, storage frames, completion association, DMA, summary, timeout, removal, and drain gates");
     return 0;
 }

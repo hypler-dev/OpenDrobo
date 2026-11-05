@@ -5,33 +5,22 @@ import subprocess
 import tempfile
 
 from desktop_tools import ROOT, environment
+from build_driverkit import build
 
 
 def main() -> int:
     env = environment()
-    sdk = subprocess.run(["xcrun", "--sdk", "driverkit", "--show-sdk-path"],
-                         text=True, capture_output=True, check=True, env=env).stdout.strip()
-    sdk_root = Path(sdk) / "System/DriverKit"
     source = ROOT / "platform/macos/driverkit"
     with tempfile.TemporaryDirectory(prefix="opendrobo-driverkit-", dir="/private/tmp") as temporary:
-        common = ["-target", "arm64-apple-driverkit25.0", "-isysroot", sdk,
-                  "-isystem", str(sdk_root / "usr/include"),
-                  "-iframework", str(sdk_root / "System/Library/Frameworks"),
-                  "-Wall", "-Wextra", "-Werror", "-c"]
-        for name in ("ReadOnlyTaskAdapter", "DriverKitDma", "DriverKitSession"):
-            subprocess.run(["xcrun", "clang++", *common, "-std=c++20", "-fblocks",
-                            str(source / f"{name}.cpp"), "-o", f"{temporary}/{name}.o"],
-                           check=True, env=env)
-        for name in ("ReadOnlyTaskPolicy", "DmaOwnership", "InterruptProgram", "ControllerTransport"):
-            subprocess.run(["xcrun", "clang", *common, "-std=c11",
-                            str(source / f"{name}.c"), "-o", f"{temporary}/{name}.o"],
-                           check=True, env=env)
+        build(Path(temporary) / "sdk")
         checks = {
             "policy": ["ReadOnlyTaskPolicy.c", "Checks.c"],
             "dma": ["DmaOwnership.c", "DmaChecks.c"],
             "interrupt": ["InterruptProgram.c", "InterruptChecks.c"],
             "controller": ["ReadOnlyTaskPolicy.c", "DmaOwnership.c", "InterruptProgram.c",
                            "ControllerTransport.c", "ControllerChecks.c"],
+            "scsi-responses": ["ScsiResponses.c", "ScsiResponseChecks.c"],
+            "scsi-tasks": ["ScsiTaskTable.c", "ScsiTaskChecks.c"],
         }
         for name, files in checks.items():
             executable = f"{temporary}/{name}-checks"
@@ -40,7 +29,7 @@ def main() -> int:
                             *(str(source / file) for file in files), "-o", executable],
                            check=True, env=env)
             subprocess.run([executable], check=True, env=env)
-    print("PASS: seven ARM64 DriverKit objects and four sanitizer suites; no driver bundle, activation, or hardware access")
+    print("PASS: eleven ARM64 objects, IIG/link, six sanitizer suites; inactive bundle, hardware gate closed, no activation")
     return 0
 
 

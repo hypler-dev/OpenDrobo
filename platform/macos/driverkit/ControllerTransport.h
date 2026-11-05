@@ -10,7 +10,11 @@
 extern "C" {
 #endif
 
-enum { OD_TBT_CONTROLLER_SLOTS = 32, OD_TBT_TM_REQUEST_BYTES = 104 };
+enum {
+    OD_TBT_CONTROLLER_SLOTS = 32,
+    OD_TBT_TM_REQUEST_BYTES = 104,
+    OD_TBT_STORAGE_REQUEST_BYTES = 144
+};
 typedef enum {
     OD_TBT_CTL_OK = 0, OD_TBT_CTL_ARGUMENT, OD_TBT_CTL_STATE,
     OD_TBT_CTL_NOT_READY, OD_TBT_CTL_UNSUPPORTED, OD_TBT_CTL_FORMAT,
@@ -63,8 +67,9 @@ typedef struct {
     uint32_t bar0_bytes, bar1_bytes;
     uint32_t request_offset, response_offset, window, max_transfer;
     uint32_t next_transaction;
-    uint64_t last_time_ms;
-    uint8_t removed;
+    uint64_t last_time_ms, logical_blocks;
+    ODTBTChannel channel;
+    uint8_t removed, external_summary;
     uint8_t device_interrupts_touched;
     ODTBTInterruptProgram request_interrupt, response_interrupt, summary_interrupt;
     ODTBTControllerSlot slots[OD_TBT_CONTROLLER_SLOTS];
@@ -76,15 +81,31 @@ typedef struct {
  * No original vendor code is linked. Only mock accessors are executed in tests. */
 ODTBTControllerStatus od_tbt_controller_init(ODTBTController *, const ODTBTControllerIO *,
                                             uint32_t bar0_bytes, uint32_t bar1_bytes);
+/* Initializes one version-4 queue engine. STORAGE validates LUN 0's checked
+ * 512-byte geometry; MANAGEMENT deliberately does not. When external_summary
+ * is nonzero, start/stop/poll leave the shared summary interrupt untouched.
+ * The service owns exactly one explicit summary clear/enable/disable sequence
+ * around both queue engines. */
+ODTBTControllerStatus od_tbt_controller_init_channel(ODTBTController *, const ODTBTControllerIO *,
+                                                    uint32_t bar0_bytes, uint32_t bar1_bytes,
+                                                    ODTBTChannel channel, int external_summary);
 ODTBTControllerStatus od_tbt_controller_start(ODTBTController *);
 int od_tbt_controller_running_for(const ODTBTController *, const void *io_context);
+ODTBTControllerStatus od_tbt_controller_summary_clear(ODTBTController *);
+ODTBTControllerStatus od_tbt_controller_summary_enable(ODTBTController *);
+ODTBTControllerStatus od_tbt_controller_summary_disable(ODTBTController *);
+/* Reads the validated shared summary cause without acknowledging or changing
+ * it. Call after both queue engines start and before the one service-level
+ * enable. A nonzero result is for the service to reject. */
+ODTBTControllerStatus od_tbt_controller_summary_state(ODTBTController *, uint32_t *state);
 
-/* Only management data-in plans are accepted (INQUIRY and the two recovered
- * MODE SENSE pages). Both leases must be valid, prepared, single-segment,
+/* Only data-in plans matching this engine's channel are accepted: management
+ * INQUIRY/MODE SENSE or storage READ(10)/READ(16). Both leases must be valid,
+ * prepared, single-segment,
  * nonoverlapping, bound to the same DMA backend/provider, and exclusively transferred to this controller until it
  * reports completion. The write_request backend updates the actual prepared
- * DMA mapping; a CPU virtual address is never treated as its storage. Storage I/O and inline
- * geometry are deliberately unsupported by this initial controller engine. */
+ * DMA mapping; a CPU virtual address is never treated as its storage. Storage
+ * requests also require exact 512-byte block bytes and captured LUN 0 bounds. */
 ODTBTControllerStatus od_tbt_controller_submit(ODTBTController *, const ODTBTTaskInput *,
                                              ODDmaLease *request, ODDmaLease *payload,
                                              uint64_t now_ms, uint64_t deadline_ms,

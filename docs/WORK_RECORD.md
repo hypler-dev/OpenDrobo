@@ -16,7 +16,7 @@ The former third-party application dependency has been removed. No external pars
 - `desktop/src-tauri/`: Rust commands for registry discovery, bounded read-only capacity calls, raw hexadecimal lab capture, and scoped GitHub release checks.
 - `platform/macos/transport/`: C bridge for original user-client ABI. Query is open → LUN page 4 → capacity page 2 → close; no arbitrary or write commands.
 - `platform/macos/fskit/`: Swift FSKit read-only separate-view module with path/inode binding, held descriptors, directory enumeration, and conservative symlink confinement.
-- `platform/macos/driverkit/`: an ARM64 SDK task projection, read-only policy, DMA ownership leases, firmware-defined interrupt interpreter, bounded version-4 management engine, and SDK DMA/PCI/interrupt resource adapters; no driver bundle or activated live transport.
+- `platform/macos/driverkit/`: an ARM64 SDK/IIG SCSI service, read-only policy, DMA leases, interrupt interpreter, bounded version-4 storage/management engines, inline logical-geometry replies, and SDK resource adapters. The local `.dext` is disabled before hardware access and has not been installed or activated.
 
 The native source intentionally passes `byteUnitsConfirmed: false`. Injected FSKit tests exercise a positive confirmed record, but live provider statistics remain unavailable until hardware evidence exists. The older `macos/` SwiftUI app and `experiments/capacity/` Swift prototype remain reference code; `make build` uses the Rust/Tauri application.
 
@@ -103,17 +103,38 @@ Final focused result: `python3 scripts/check_driverkit.py` with `TMPDIR=/private
 
 No unrelated source dirt was present. Ignored vendor inputs, extracted artwork, REA output, installed toolchains, generated caches and build products remain outside publication. No driver installation, registration, activation, filesystem mount, home-Mac access, disk-pack write, firmware execution, reset, flash, tag, deployment or app release occurred.
 
+## SCSI service and storage-callback slice
+
+The user's request accepted this continuation from `ba319e388f8935c9ae02444fe692c0c09dd7f9c1`: real SDK/IIG controller service, target/ordinary asynchronous task callbacks, bounded storage reads, and inline logical-geometry responses. Acceptance requires SDK generation/compile/link, meaningful host mocks, repository checks, fresh independent review, and source-only publication. No activation, device command, mount, disk-pack write, home-Mac access, firmware operation or public binary release is included.
+
+Implementation and exact changed paths:
+
+- `platform/macos/driverkit/OpenDroboSCSIController.iig` and `OpenDroboSCSIController.cpp`: actual framework subclass, target and normal asynchronous task API, default/auxiliary queue separation, buffer acquisition/remapping, retained actions, timer/interrupt callbacks, and serialized close. Unsupported task-management/reset operations are rejected. Source execution is hard-disabled before PCI open or framework Start.
+- `platform/macos/driverkit/ScsiTaskTable.h`, `ScsiTaskTable.c`, and `ScsiTaskChecks.c`: shared task/action ownership, duplicate/transaction checks, live-DMA completion refusal, callback snapshots and destructive/reentrant callback tests.
+- `platform/macos/driverkit/ScsiResponses.h`, `ScsiResponses.c`, and `ScsiResponseChecks.c`: bounded inline TUR, READ CAPACITY(10/16), REPORT LUNS and INQUIRY standard/VPD00/80. Geometry remains the original logical ceiling; identity describes the project bridge/registry attachment, not verified physical hardware.
+- `platform/macos/driverkit/ControllerTransport.h`, `ControllerTransport.c`, and `ControllerChecks.c`: separate storage/management directory and interrupt selection, checked 512-byte logical geometry, read bounds, 144-byte experimental storage frame, external shared-cause ownership and startup state query. Existing management API remains available.
+- `platform/macos/driverkit/DriverInfo.plist`, `scripts/build_driverkit.py`, and `scripts/check_driverkit.py`: local inactive research bundle metadata/build, architecture-neutral IIG generation, eleven ARM64 object compilations, framework link and six host sanitizer suites. No provisioning, installation or activation action exists in these scripts.
+- `README.md`, `docs/CAPACITY_REPORTING.md`, `research/THUNDERBOLT_TRANSPORT.md`, and this record: source/build scope, original evidence, hardware limits and continuation.
+
+Original recovery: REA queried the storage builder at x86 `0x6d9a`, inline handlers and target initializer. Both original driver slice hashes were rechecked and unchanged. A bounded independent ARM read corroborates fixed extension/field offsets in the ARM builder at `0x12a2c`, without certifying all field semantics. Raw receipts and selected evidence remain ignored under `artifacts/reports/scsi`. **Storage `+0x38` remains unresolved:** the original writes its host virtual SGL address there; firmware use is not established. OpenDrobo writes zero as a host cookie. This experimental choice is not hardware-proven. `od_scsi_service_hardware_enabled()` returns zero and no plist/preference can open that gate.
+
+Validation: `env TMPDIR=/private/tmp make check` exited 0, all 18 lanes passed. The expanded DriverKit lane generated IIG code, compiled eleven ARM64 objects, linked an inactive `.dext`, and passed six ASAN/UBSAN suites. `python3 scripts/build_driverkit.py` also exited 0 against final source, producing `artifacts/driverkit/OpenDroboStorage.dext`. `file` identifies an ARM64 Mach-O executable; its load commands reference Apple DriverKit, PCIDriverKit, SCSIControllerDriverKit and the SDK C++ runtime. No original vendor driver is linked into this research bundle. This is build/link and mock proof only; SDK callbacks and PCI/DMA methods were not executed. The application/FSKit package was not rebuilt or changed for this source-only slice.
+
+Native OpenAI `gpt_worker` tasks `scsi_inline` and `scsi_storage_transport` produced disjoint leaf components. The controller produced and integrated the SDK service, callback coordinator and build/check scripts. `gpt_reader` supplied SDK and ARM evidence. Fresh OpenAI `gpt_reviewer` task `scsi_service_review` returned **PASS, no actionable P1/P2/P3**, after integration fixes and final evidence review. Fixes covered partial-initialization cleanup, failed-Start pin release without assuming Stop, explicit service pins, callback-table destruction safety, and shared-summary startup validation. Worker/reviewer configurations pin `gpt-5.6-terra`; reader pins `gpt-5.6-luna`; runtime model IDs are not exposed. No GLM, Spark or retired-model lane was used.
+
+Receipts: `artifacts/reports/scsi/full-check.log`, `check.log`, `build.log`, `artifacts/reports/desktop-checks/results.json`, and `artifacts/driverkit/build.json`. The containing source commit is this checkpoint; public-main equality is verified at publication. No unrelated source dirt was present. Vendor binaries/artwork, decompilation, toolchains, generated IIG files, caches and the `.dext` remain ignored and excluded from publication. No driver installation, registration, activation, live SCSI command, mount, data-pack write, firmware operation, deployment, tag or binary release occurred.
+
 ## Next safe slice
 
-Implement the actual DriverKit SCSI controller service, target/SCSI callbacks, storage-read path and inline identity/geometry, then connect the management engine without the original user client. Establish a verified bus-master drain mechanism, reset/sleep/wake policy, real interrupt delivery and hardware ordering before a named spare-unit activation test. For BeyondRAID, establish member-image locations and generation selection, then compare reconstructed bytes against real images. Collect read-only capacity records to establish byte units and pool scope before testing FSKit mount/statistics/Finder agreement. A smaller READ CAPACITY is not a safe way to change an existing HFS+ volume's statistics.
+Resolve storage host-cookie/firmware semantics; prove a DMA drain mechanism and partial-lifecycle behavior with stronger service-backend mocks; complete SCSI sense/mode-page and reset/power policies. Define entitlement/provisioning and a named spare-unit activation plan only after those gates are met. Connect an independent management service to the application with verified device/LUN/unit binding. Capture true protected capacity and compare FSKit `statfs`/Foundation/Finder on the same read-only view. A smaller READ CAPACITY is not a safe way to change existing HFS+ statistics. BeyondRAID member locations/generations and real-image reconstruction remain separate research.
 
 ## Continuation
 
 ```text
 Repo: OpenDrobo; start with pwd, git branch --show-current, git rev-parse HEAD, git status --short --branch.
 Read: README.md -> docs/WORK_RECORD.md -> research/THUNDERBOLT_TRANSPORT.md -> research/BEYONDRAID_LAYOUT.md -> docs/CAPACITY_REPORTING.md.
-Truth: Rust/Tauri app still needs original live driver; independent offline probe/codecs and non-loading DMA/interrupt/management engine compile and pass mocks; no hardware/Finder proof.
-Scope: DriverKit SCSI service/storage/inline callbacks, proven DMA drain/lifecycle, capacity-unit lab evidence, RMR image locations/generations, FSKit read-only view.
+Truth: Rust/Tauri app still needs original live driver; real SDK/IIG SCSI source and inactive ARM64 dext link; six native suites and all18 lanes pass; hardware gate closed, no Finder proof.
+Scope: resolve storage host-cookie; stronger service mocks; proven DMA drain and SCSI/power behavior; independent app management binding; capacity-unit/FSKit evidence; RMR image research.
 Do not: access home Mac, install/activate drivers or extensions, mount, flash, format, erase, mutate arrays, or publish vendor artifacts.
 Validate: make check; scripts/check_driverkit.py after native changes; make build after app/package changes; fresh review; hardware only on named spare plan.
 Ledger: docs/WORK_RECORD.md; artifacts/reports; https://github.com/hypler-dev/OpenDrobo.
