@@ -2,6 +2,7 @@
 
 mod capacity_history;
 mod controls;
+mod desktop_ui;
 mod device_events;
 mod diagnostics;
 mod mcp;
@@ -11,6 +12,7 @@ mod system;
 mod updates;
 
 use serde::Serialize;
+use tauri::Manager;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -397,8 +399,16 @@ fn main() {
         "OpenDrobo started with read-only monitoring and explicit GUI-only device controls.",
     );
     tauri::Builder::default()
+        .manage(desktop_ui::DesktopActionQueue::default())
+        .manage(desktop_ui::TrayInstalled::default())
         .setup(|app| {
             use tauri::Emitter;
+            match desktop_ui::install_tray(app) {
+                Ok(()) => app.state::<desktop_ui::TrayInstalled>().mark_installed(),
+                Err(error) => {
+                    eprintln!("OpenDrobo tray unavailable; close will exit normally: {error}")
+                }
+            }
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 loop {
@@ -418,6 +428,20 @@ fn main() {
             });
             Ok(())
         })
+        .on_window_event(|window, event| {
+            if window.label() != "main"
+                || !window.state::<desktop_ui::TrayInstalled>().is_installed()
+            {
+                return;
+            }
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                desktop_ui::queue_window_hidden(window.app_handle());
+                if let Err(error) = window.hide() {
+                    eprintln!("OpenDrobo could not hide its main window: {error}");
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             get_inventory,
             read_capacity,
@@ -432,7 +456,8 @@ fn main() {
             get_control_status,
             execute_device_control,
             get_console_records,
-            open_sharing_settings
+            open_sharing_settings,
+            desktop_ui::take_desktop_action
         ])
         .run(tauri::generate_context!())
         .expect("OpenDrobo desktop runtime failed");

@@ -4,6 +4,7 @@ import { analyzeCapacity, type CapacityObservation, type CapacityStatistics, typ
 import { resolveStatusSelection, statusUnitLabel } from "./status_selection";
 import { driveIndicator, DRIVE_INDICATOR_MEANINGS, fiveDBayIndicators } from "./drive_indicator";
 import { deviceLabel, groupDroboVolumes, usageAccounting, installedCapacity } from "./storage_presentation";
+import { createDesktopActionDrainer, type DesktopAction } from "./desktop_actions";
 import "./styles.css";
 
 type Section = "all" | "status" | "capacity" | "volumes" | "events" | "statistics" | "console" | "sharing" | "mcp" | "management" | "tools" | "settings" | "preferences" | "help";
@@ -305,6 +306,7 @@ let poolLoading = false;
 let poolRequestSequence = 0;
 let poolExpiryTimer: number | null = null;
 let poolEventSubscribed = false;
+let desktopActionSubscribed = false;
 let statisticsRange: StatisticsRange = "all";
 let statisticsMetric: "used" | "free" | "os" = "used";
 let statisticsPoolId: string | null = null;
@@ -361,6 +363,11 @@ let capacityRequestSequence = 0;
 let updateRequestSequence = 0;
 let capacityExpiryTimer: number | null = null;
 let focusAfterNavigation = false;
+
+const drainDesktopActions = createDesktopActionDrainer(
+  () => call<string | null>("take_desktop_action"),
+  (action) => handleDesktopAction(action)
+);
 
 function requiredElement(id: string): HTMLElement {
   const element = document.getElementById(id);
@@ -840,10 +847,20 @@ function enclosureArtwork(pool: PoolStatus, fresh: boolean): HTMLElement {
   cacheButton.disabled = !cache;
   stage.append(bays);
   const legend = element("div", "drive-led-legend");
-  legend.setAttribute("aria-label", "Drive indicator colors");
+  legend.setAttribute("aria-label", "Drive indicator meanings");
+  const cues = {
+    green: "Steady · No bay action",
+    amber: "Steady · Add space soon",
+    red: "Steady · Add space now",
+    protecting: "Alternating · Keep drives installed",
+    "red-flash": "Flashing · Check this drive",
+    unknown: "Refresh to check",
+  };
   for (const kind of ["green", "amber", "red", "protecting", "red-flash", "unknown"] as const) {
     const meaning = DRIVE_INDICATOR_MEANINGS[kind];
-    const item = textElement("span", meaning.summary); item.title = meaning.label; item.dataset.led = kind; legend.append(item);
+    const item = element("span", "drive-led-key"); item.title = meaning.label; item.dataset.led = kind;
+    item.append(textElement("strong", meaning.summary), textElement("small", cues[kind]));
+    legend.append(item);
   }
   wrap.append(stage, cacheButton, textElement("p", "Select a drive to view its details.", "status-copy"), legend);
   return wrap;
@@ -2349,6 +2366,49 @@ function selectSection(section: Section): void {
   render();
 }
 
+function requestDesktopActionDrain(): void {
+  void drainDesktopActions().catch(() => undefined);
+}
+
+function handleDesktopAction(action: DesktopAction): void {
+  switch (action) {
+    case "show":
+      return;
+    case "refresh":
+      refreshReadOnlyDashboardData();
+      return;
+    case "window-hidden":
+      clearPendingControl("Window hidden; pending power confirmation was cancelled.");
+      if (selectedSection === "tools" || selectedSection === "settings") render();
+      return;
+    case "status": selectSection("status"); return;
+    case "capacity": selectSection("capacity"); return;
+    case "volumes": selectSection("volumes"); return;
+    case "events": selectSection("events"); return;
+    case "statistics": selectSection("statistics"); return;
+    case "console": selectSection("console"); return;
+    case "tools": selectSection("tools"); return;
+    case "preferences": selectSection("preferences"); return;
+    case "help": selectSection("help"); return;
+  }
+}
+
+function refreshReadOnlyDashboardData(): void {
+  void loadPoolStatus(false);
+  switch (selectedSection) {
+    case "all": void loadInventory(); return;
+    case "volumes": void loadStorageStatus(); return;
+    case "events": void loadDeviceEvents(true); return;
+    case "statistics":
+      void loadCapacityHistory();
+      void loadDeviceEvents(true);
+      return;
+    case "console": void loadConsoleRecords(true); return;
+    case "sharing": void loadSharingStatus(); return;
+    default: return;
+  }
+}
+
 async function loadCapacityHistory(): Promise<void> {
   if (capacityHistoryLoading) return;
   const requestToken = ++capacityHistoryRequestSequence;
@@ -2425,6 +2485,18 @@ async function subscribePoolEvents(): Promise<void> {
     else poolError = event.payload;
     renderPoolConsumers();
   });
+}
+
+async function subscribeDesktopActions(): Promise<void> {
+  if (desktopActionSubscribed || !tauriAvailable()) return;
+  desktopActionSubscribed = true;
+  try {
+    const unlisten = await listen<unknown>("opendrobo-desktop-action", requestDesktopActionDrain);
+    window.addEventListener("pagehide", () => unlisten(), { once: true });
+    requestDesktopActionDrain();
+  } catch {
+    desktopActionSubscribed = false;
+  }
 }
 
 function captureConsoleDomState(): { focusId: string | null; selectionStart: number | null; selectionEnd: number | null; scrollTop: number | null } | null {
@@ -2813,12 +2885,14 @@ function errorMessage(error: unknown): string {
 async function initialize(): Promise<void> {
   inventoryLoading = true;
   render();
+  startupOverlay().dismissWhenReady();
   if (!tauriAvailable()) {
     inventoryLoading = false;
     inventoryError = "Desktop app required. Browser preview cannot access local devices or storage.";
     render();
     return;
   }
+  void subscribeDesktopActions();
   void subscribePoolEvents();
   void loadPoolStatus(false);
   const generation = requestGeneration;
@@ -2844,6 +2918,10 @@ async function initialize(): Promise<void> {
     inventoryLoading = false;
     if (selectedSection === "all") render();
   }
+}
+
+function startupOverlay(): { dismissWhenReady: () => void } {
+  return (window as Window & { OpenDroboStartup?: { dismissWhenReady: () => void } }).OpenDroboStartup ?? { dismissWhenReady: () => undefined };
 }
 
 document.addEventListener("visibilitychange", () => {

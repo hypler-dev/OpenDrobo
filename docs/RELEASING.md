@@ -4,6 +4,14 @@ The canonical release decision and hardware scope are recorded in [WORK_RECORD.m
 
 ## What the publisher must provide
 
+### Local and tester builds without membership
+
+An Apple Developer Program membership is not required to build or try the ordinary dashboard locally. Our local packages are ad-hoc signed, without an Apple-verified publisher identity or notarization. For a downloaded build from a trusted source, Apple's current [per-application exception instructions](https://support.apple.com/en-us/102445) say to attempt opening it first, then use System Settings → Privacy & Security → Open Anyway and confirm Open if macOS offers that option. Managed Macs may restrict the exception. Malware, revoked authorization and damaged-package alerts require investigation rather than this routine unidentified-developer exception.
+
+This is an explicit tester choice, not the project's notarized public v1.0 release policy. Do not disable Gatekeeper or SIP, or remove quarantine attributes as installation instructions. An application exception does not authorize or activate the replacement DriverKit extension. The current app still needs the original Drobo driver for the verified Thunderbolt path.
+
+### Notarized public release
+
 The owner confirmed that no Apple Developer Program membership exists yet. Enroll through [Apple's official enrollment flow](https://developer.apple.com/help/account/membership/program-enrollment/). Apple currently lists a US annual fee of $99, with local pricing where available, an Apple Account with two-factor authentication and identity verification. Choose the publisher before enrolling: individual membership uses the individual's identity; an organization needs a legal entity, D-U-N-S number, binding authority, work-domain email and a functioning organization website. The owner must accept Apple's agreements and complete payment; no account, purchase or credential operation has been performed here.
 
 After approval, the Account Holder creates a [Developer ID Application certificate](https://developer.apple.com/help/account/certificates/create-developer-id-certificates) and installs it with its matching private key in the signing Mac's Keychain. The nonsecret identity name/Team ID can identify the signer. Keep passwords, private keys, exported signing bundles and API secrets out of chat and Git. Configure a notarization Keychain profile locally; then the existing release tooling can sign, submit through the approved workflow, staple, inspect and regenerate final checksums. Signing alone is not notarization or publication approval.

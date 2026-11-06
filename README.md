@@ -10,8 +10,11 @@ OpenDrobo is an independent desktop dashboard for Drobo storage. See your enclos
 - A tidy volume list with native Mac icons, filesystem, mount location, permissions and enclosure grouping.
 - Drive make/model, firmware and SSD capacity/life when the device reports them.
 - Capacity history, charts, observation gaps, events and a bounded application console.
+- A branded startup screen and menu-bar shortcuts for dashboard pages, read-only refresh, hide/show and quit.
 - Native Mac sharing visibility and a shortcut to File Sharing settings. macOS accounts and folder permissions remain authoritative.
 - Optional read-only MCP access for a trusted local assistant or script. See the [MCP guide](docs/MCP.md).
+
+Closing the dashboard window leaves OpenDrobo available in the menu bar. Use Quit in its menu to exit. Menu shortcuts open pages and refresh read-only information; device actions remain inside Tools.
 
 The dashboard can show model-specific light and power controls with explicit selection and safety checks. Live control validation remains pending on a separate disposable test unit.
 
@@ -41,6 +44,8 @@ open dist/OpenDrobo.app
 ```
 
 Local builds use optimized code and ad-hoc signing; they are not notarized distribution releases. App update checks open verified project release pages and do not download or install software automatically.
+
+Trusted tester builds can use macOS's per-app approval when available, without a paid developer membership. See the [local/tester instructions](docs/RELEASING.md#local-and-tester-builds-without-membership); the public v1.0 release retains its signing and notarization gates.
 
 Read the [management guide](docs/MANAGEMENT_FEATURES.md) for dashboard features, the [developer guide](docs/DEVELOPER_GUIDE.md) for architecture and contribution details, and the [release guide](docs/RELEASING.md) for distribution checks.
 

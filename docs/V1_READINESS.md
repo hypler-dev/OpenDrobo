@@ -25,6 +25,12 @@ Hardware evidence covers one Drobo 5D through the original Thunderbolt driver on
 
 ## Validation and home-Mac QA
 
+The subsequent startup/tray/indicator slice passes **26/26 lanes** with 77 Python, 54 desktop backend, 40 core, seven probe and 36 frontend tests. Both optimized architecture packages pass structural inspection with 118 application/package inputs unchanged. Both default macOS license graphs were reproduced after enabling `tray-icon`: component and notice counts are unchanged, with no lockfile or dependency-version changes. Local packages remain ad-hoc signed, without notarization and with the same thirteen documentary terms-review gaps.
+
+The latest Intel candidate passed eight read-only CLI modes and ten MCP SDK tool calls on the home Mac. Computer Use observed the matching Finder/Dock icon, monochrome enclosure tray, Status/Capacity navigation, close-to-tray and reopening, refresh, Tools without a control target, explicit tray Quit and Finder relaunch. The six indicator meanings now have distinct static symbols and steady/flashing guidance; the legend was readable at 1120 × 800 and 860 × 640. The 700 ms splash was not captured by remote screenshot sampling; its paint scheduling, error/focus recovery and bounded dismissal passed source review and five automated tests. Direct splash visual acceptance, runtime accessibility preferences and real fault transitions remain open. Exactly one final GUI process and the unchanged original DDService PID/hash were verified. No hardware-control command was sent. Latest receipts are under ignored `artifacts/reports/splash-tray/`.
+
+The following bullets retain the preceding artwork/notice checkpoint:
+
 - `make check`: **24/24 lanes passed**, including 77 Python tests, 49 desktop backend tests, 40 portable core tests, seven probe tests and 28 frontend behavior tests. The full 77-test Python suite was repeated after the final test-only review correction and passed. Frontend type/build, formatting, native icon binding/rendering, wire/native, DriverKit and inactive FSKit checks passed.
 - DriverKit SDK/IIG/link checks and eight ASAN/UBSan suites passed. The current `OpenDroboStorage.dext` executable is ARM64. No module was installed or activated; its hardware gate remains disabled.
 - Two optimized local packages passed build and structural inspection, one Intel and one ARM64. All 112 recorded application/package inputs stayed unchanged during validation. Both include the OpenDrobo license and a checksum-bound partial third-party notice bundle. The packages remain version `0.2.0`, ad-hoc signed and not distribution-ready. Signature identity, stapling/Gatekeeper and incomplete-notice gates remain false.
@@ -52,7 +58,7 @@ The managed security scan previously failed to save canonical artifacts because 
 
 | Gate | Required next evidence | Status |
 | --- | --- | --- |
-| Signing and notarization | Apple Developer membership, publisher identity, Developer ID Application certificate, notarization and final stapler/Gatekeeper proof | Blocked: owner has no membership yet; no purchase, credentials or submission performed |
+| Signing and notarization | For the notarized public v1.0 policy: Apple Developer membership, publisher identity, Developer ID Application certificate, notarization and final stapler/Gatekeeper proof. Trusted local/tester builds may use a per-app exception when macOS offers it; see RELEASING.md. | Blocked: owner has no membership yet; no purchase, credentials or submission performed |
 | Dependency compliance | Resolve thirteen documentary terms gaps, applicable license/source-access duties and actual shipped-content review | Open: 277/290 documentary coverage; schema validation now passed |
 | Apple-silicon device transport | Read-only device receipts on a named Apple-silicon Mac/macOS and Thunderbolt chain | Unverified; package compilation only |
 | Independent Thunderbolt driver | Approved provisioning, implemented/reviewed activation and actual initialization/DMA/interrupt/read-only I/O proof | Inactive compiled prototype; not a working replacement |

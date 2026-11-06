@@ -3,10 +3,10 @@ export interface DriveIndicator { kind: DriveIndicatorKind; label: string; summa
 
 export const DRIVE_INDICATOR_MEANINGS: Record<DriveIndicatorKind, Omit<DriveIndicator, "kind">> = {
   unknown: { summary: "Status unavailable", label: "Status unavailable or stale. Refresh before assessing this bay." },
-  green: { summary: "Ready", label: "Ready (green). No drive action indicated by this bay light." },
-  amber: { summary: "Low space", label: "Low space (amber). Plan to add capacity or upgrade a drive soon." },
+  green: { summary: "Ready", label: "Ready (steady green). No drive action indicated by this bay light; this is not a complete array-health assessment." },
+  amber: { summary: "Low space", label: "Low space (steady yellow). Plan to add capacity or upgrade a drive soon." },
   red: { summary: "Add capacity now", label: "Capacity critical (solid red). Add capacity or upgrade the indicated drive; this light alone does not mean drive failure." },
-  protecting: { summary: "Protecting data", label: "Data protection in progress (alternating green/amber). Keep drives installed until protection completes." },
+  protecting: { summary: "Protecting data", label: "Data protection in progress (alternating green/yellow). Keep drives installed until protection completes." },
   "red-flash": { summary: "Drive fault", label: "Drive fault (flashing red). Review this bay for a failed or incompatible drive and replacement." },
 };
 

@@ -2,6 +2,12 @@
 
 Last updated: November 6, 2026. This is the canonical status and acceptance record.
 
+## Active follow-up: startup branding, tray navigation and indicator clarity
+
+The user approved the newly rendered artwork and requested a matching startup screen, application/tray icons and logical tray commands. They also requested verification of the drive-light meanings and more distinct presentation of Ready, Low space, Add capacity, Protecting data, Drive fault and Status unavailable. Acceptance preserves the recovered per-bay selector and physical color conventions, distinguishes steady red capacity alerts from flashing red faults, and provides persistent non-color cues, including under Reduce Motion. The startup screen must not depend on hardware discovery or imply successful connectivity. Tray commands provide navigation, read-only refresh, visibility and quit only; entering Tools must not establish device-control authority.
+
+Source work starts from `d70cd37ca82bd5deded27312b912981bbef14581`. Root owns integration, indicator changes, notice refresh, packaging and host verification; bounded workers own startup/frontend routing and native tray files. Fresh independent review is required. Read-only home-Mac verification remains authorized, with GUI interaction through computer use only. No driver activation, DDService restart, physical LED/control operation, pack mutation, signing-account enrollment, binary release or tag is included. Manual Gatekeeper exceptions for trusted local/tester builds are documented separately from the unchanged notarized-public-release policy.
+
 ## Latest accepted follow-up: remaining v1.0 gates and OpenDrobo artwork
 
 The user authorized continuing all presently actionable v1.0 blockers, researching license/rights questions, and documenting what they must provide for signing and hardware testing. They confirmed no Apple Developer membership yet and a spare enclosure of the same 5D model. Newly rendered product art must preserve recognizable 5D hardware, the approved three-quarter angle, green bay lights and blue lower-row lights; decorative lights do not become active-device telemetry. Adding “Open” or changing an angle is not evidence of rights clearance.
@@ -552,3 +558,47 @@ tests/test_release_preflight.py
 ```
 
 Continuation: start here with `git status --short --branch`, `git rev-parse HEAD` and `git log -1 --oneline`; read `docs/WORK_RECORD.md`, `docs/V1_READINESS.md`, `docs/RELEASING.md`, `docs/THIRD_PARTY.md`, then `docs/HARDWARE_VALIDATION.md` and the offline lab guide. Source is the reviewed follow-up identified by Git; home preview and both local packages remain ad-hoc/distribution-blocked. Active scope is the explicit remaining v1.0 gates. Preserve the home pack, DDService ownership, activation/geometry fences and separate destructive authority. Run focused checks only for new accepted changes, reuse unchanged evidence, and retain this ledger plus the named private receipts as the current status pointer.
+
+## Startup, tray and indicator follow-up acceptance
+
+The approved newly rendered enclosure art now appears in the independent startup screen; the prior checkpoint's matching application icon is retained in both packages. A new code-drawn macOS template tray depicts five horizontal bays. Its menu opens dashboard pages, requests read-only refresh, hides/reveals the window and quits. Closing the window hides it only after tray installation succeeds. CLI and MCP modes initialize no tray or webview. The bounded main-window queue preserves hidden-window confirmation cancellation, latest navigation and refresh independently; Show cannot discard a queued destination. Tray navigation does not grant a control target, query brightness or execute a device action.
+
+The six bay meanings remain bound to the original selector. Ready is steady green, low space steady yellow, urgent capacity steady red, protection alternating green/yellow and a drive fault flashing red. Gray is OpenDrobo's unavailable/stale state, not a physical error code. The clearer legend adds persistent symbols, patterns, steady/flashing descriptions and action guidance; fault and protection retain nonanimated cues under Reduce Motion. Green is explicitly not a complete array-health assessment. Real fault transitions were not induced.
+
+Validation and private evidence:
+
+- Final `make check`: 26/26 lanes passed, including 77 Python tests, 54 backend tests, 40 portable core tests, seven probe tests and 36 frontend tests. Five startup tests cover paint/dismissal timing, manual skip followed by failure, persistent recovery, post-ready errors and early-error recovery. Five native tray tests cover action authority, main-window gating and queue order. Source reviews caught and corrected a hidden-error overlay, late error handling, pre-paint dismissal and lost rapid navigation/refresh clicks.
+- Optimized Intel and ARM64 packages passed build and structural checks with all 118 recorded application/package inputs unchanged. They remain version 0.2.0, ad-hoc signed, without bundled research extensions and not distribution-ready. The notice/signature/notarization/Gatekeeper gates remain open. Build logs retain the existing unused test-only import and local Rust objcopy/LLVM warning; packaging and strict signature verification passed. Initial sandbox loopback fixture binding failed with `Operation not permitted`; the approved outside-sandbox run passed. A superseded in-flight package was rejected by the input-drift guard during review; only the final unchanged-input candidates were used.
+- Intel archive SHA-256: `08ff002ab64169daa476b4d773f6eb8cc464679a0afb66e86d50a900e1a9b6a9`. ARM64 archive SHA-256: `f22bf27a1c3a915bd75aac8d3e0cfcd1270349058177e168b06ff65a31397ab5`.
+- Both locked default macOS license graphs were regenerated and replayed after adding the existing `tray-icon` feature. No packages or versions changed: 290 components, 492 documents, 277 documentary terms-coverage entries and the same thirteen manual-review gaps. `defaultGraphVerified` is true and legal review remains required. Cargo.lock is unchanged.
+- The exact final Intel candidate passed all eight read-only CLI modes and ten SDK MCP tools on the home Mac. Computer Use observed the matching Finder/Dock icon and monochrome tray; Status, single-unit selection and five green bays; close-to-tray and Capacity reopening; read-only Refresh; Tools without an established target; explicit tray Quit and Finder relaunch. The six-card legend was readable at 1120 × 800 and 860 × 640 without horizontal page overflow. The final view restores 1120 × 800 with the legend visible.
+- Remote screenshot sampling missed the brief startup overlay. Its timing and recovery are verified by source review and automated tests, not claimed as direct visual acceptance on the home Mac. Full keyboard/VoiceOver, runtime accessibility preferences, performance, fault/disconnect transitions and Apple-silicon device transport remain open.
+- Final read-only process proof found exactly one GUI at the verified trial path and the original service's PID and SHA-256 unchanged. Private process paths, serial/correlation data and observation receipts remain ignored under `artifacts/reports/splash-tray/`; no raw capture or host identity was added to public source.
+
+Apple's current per-app approval guidance is linked in RELEASING.md. Developer membership is not required for a trusted ordinary local/tester dashboard build when macOS offers that exception; managed hosts can restrict it. The project's public v1.0 policy still requires Developer ID and notarization. No Gatekeeper/SIP/quarantine weakening, Apple account enrollment, certificate or credential operation was performed. Dashboard approval does not approve the separate inactive DriverKit research extension.
+
+Producers were root plus native OpenAI `gpt_worker` tasks `splash_frontend` and `native_tray`; the reused dependency worker produced ignored receipt material only. Fresh read-only `splash_ui_review` (`gpt_ui_review`) and `tray_release_review` (`gpt_reviewer`) returned PASS after corrections. Role TOMLs configure `gpt-5.6-terra`; actual runtime model IDs are not exposed. No GLM, Spark or retired model lane was used. Root retains integration and release judgment. No sealed new security scan, full accessibility lane or hardware certification is claimed.
+
+No device LED/brightness query or write, power command, original-service restart, driver/FSKit activation, Finder geometry change, sharing/ACL change, disk-pack operation, public binary release or tag occurred. The original driver dependency and v1.0 gates remain unchanged. There was no unrelated working-tree dirt. Standing source publication authority covers this reviewed main-branch slice; exact containing commit and public-main equality are checked at closeout. The next user-dependent work remains publisher enrollment/identity for a notarized release and the identified disposable 5D/pack plus named Apple-silicon test host.
+
+Changed source/document paths:
+
+- `README.md`
+- `desktop/index.html`
+- `desktop/public/startup.css`
+- `desktop/public/startup.js`
+- `desktop/src-tauri/Cargo.toml`
+- `desktop/src-tauri/src/desktop_ui.rs`
+- `desktop/src-tauri/src/main.rs`
+- `desktop/src/desktop_actions.ts`
+- `desktop/src/drive_indicator.ts`
+- `desktop/src/main.ts`
+- `desktop/src/styles.css`
+- `desktop/tests/desktop_actions.test.mjs`
+- `desktop/tests/startup.test.mjs`
+- `docs/DEVELOPER_GUIDE.md`
+- `docs/RELEASING.md`
+- `docs/V1_READINESS.md`
+- `docs/WORK_RECORD.md`
+- `research/MACOS_MANAGEMENT_ABI.md`
+- `scripts/check_desktop.py`

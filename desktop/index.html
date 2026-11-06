@@ -3,11 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#101528" />
+    <meta name="theme-color" content="#030406" />
     <title>OpenDrobo Dashboard</title>
+    <link rel="stylesheet" href="/startup.css" />
   </head>
   <body>
+    <section id="opendrobo-startup" aria-labelledby="opendrobo-startup-title" aria-describedby="opendrobo-startup-status">
+      <img class="startup-artwork" src="/brand/opendrobo-lineup-v2.png" alt="" />
+      <div class="startup-card">
+        <p class="startup-kicker">OPEN STORAGE DASHBOARD</p>
+        <h1 id="opendrobo-startup-title" class="startup-mark">OpenDrobo</h1>
+        <p id="opendrobo-startup-status" class="startup-status" role="status">Opening dashboard…</p>
+        <button id="opendrobo-startup-dismiss" class="startup-dismiss" type="button">Open dashboard</button>
+      </div>
+    </section>
     <div id="app"></div>
+    <main id="opendrobo-startup-error" tabindex="-1" hidden>
+      <div>
+        <h1>OpenDrobo dashboard did not start</h1>
+        <p>Close and reopen OpenDrobo. No device actions are available from this screen.</p>
+      </div>
+    </main>
+    <script src="/startup.js"></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

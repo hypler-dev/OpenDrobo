@@ -34,6 +34,10 @@ Current macOS service observer connects only to original local management servic
 
 Volume icons are read at runtime through [NSWorkspace iconForFile](https://developer.apple.com/documentation/appkit/nsworkspace/icon(forfile:)) and encoded as bounded 48-pixel PNGs; no Apple icon files are distributed.
 
+Startup branding is static first-paint HTML/CSS with a small independent recovery script; readiness means that the dashboard shell rendered, not that a Drobo was found. Automatic dismissal allows two animation frames followed by a 700 ms interval, while explicit dismissal remains immediate. Missing main-module startup produces an independent recovery screen. Startup error listeners are removed once the shell is ready.
+
+`desktop_ui.rs` owns the native tray and a bounded action queue: pending hidden-window cancellation, latest navigation and a separate refresh flag. The `opendrobo-desktop-action` event is only a wakeup signal; the main window drains `take_desktop_action` after subscribing. Hidden-window cancellation precedes navigation and refresh so pending typed confirmations cannot survive reopening. Tray navigation uses the existing frontend route helper and cannot select a control target or execute device commands. Closing hides the main window only when tray creation succeeded; explicit Quit exits. CLI/MCP modes return before tray or webview initialization. The macOS tray uses an independently drawn monochrome template enclosure; its LEDs do not claim device state.
+
 Volume and sharing adapters apply Drobo binding before returning records. Volume records are limited to verified Drobo-mounted paths. SMB exports are listed only when their configured paths fall under those Drobo mount roots with component boundaries; this lexical classification does not resolve symlink targets and grants no file access; SMB/NFS service status describes the host service. Native accounts, permissions, and ACLs remain OS-owned and are not modified. Non-Drobo volumes and unrelated share points are intentionally omitted.
 
 ## Build and test
@@ -46,7 +50,7 @@ make check
 make build
 ```
 
-`make check` currently runs 24 lanes: Rust tests, frontend type/build checks, desktop policy tests, exact-capacity statistics, Status-selection/identity, drive-indicator and usage/volume-grouping behavior suites, native icon rendering/binding-bound checks, native transport sanitizer checks, DriverKit policy checks, and direct FSKit checks. These tests do not activate a driver, mount a filesystem, or send commands to a Drobo.
+`make check` currently runs 26 lanes: Rust tests, frontend type/build checks, desktop policy tests, exact-capacity statistics, Status-selection/identity, drive-indicator and usage/volume-grouping behavior suites, native icon rendering/binding-bound checks, native transport sanitizer checks, DriverKit policy checks, and direct FSKit checks. These tests do not activate a driver, mount a filesystem, or send commands to a Drobo.
 
 The default optimized package targets macOS 14 on either architecture and excludes FSKit and extracted vendor artwork. Default UI resources use newly rendered OpenDrobo art and independently authored live enclosure graphics. Private builds may explicitly package ignored legacy files with `--local-artwork`, but normal UI no longer references them. Decorative artwork lights are not telemetry. The optional FSKit module and its direct checks require macOS 26 SDK/runtime support; it remains inactive. Build and test the app14 path separately from the FSKit research path.
 

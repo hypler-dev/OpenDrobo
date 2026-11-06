@@ -38,6 +38,8 @@ def main() -> int:
         check("status-selection-tests", ["node", "--experimental-strip-types", "--test", "tests/status_selection.test.mjs"], cwd=ROOT / "desktop")
         check("drive-indicator-tests", ["node", "--experimental-strip-types", "--test", "tests/drive_indicator.test.mjs"], cwd=ROOT / "desktop")
         check("storage-presentation-tests", ["node", "--experimental-strip-types", "--test", "tests/storage_presentation.test.mjs"], cwd=ROOT / "desktop")
+        check("desktop-action-tests", ["node", "--experimental-strip-types", "--test", "tests/desktop_actions.test.mjs"], cwd=ROOT / "desktop")
+        check("startup-tests", ["node", "--test", "tests/startup.test.mjs"], cwd=ROOT / "desktop")
         check("frontend-types", ["npm", "run", "check"], cwd=ROOT / "desktop")
         check("frontend-build", ["npm", "run", "build"], cwd=ROOT / "desktop")
         check("desktop-format", ["cargo", "fmt", "--manifest-path", "desktop/src-tauri/Cargo.toml", "--check"])
