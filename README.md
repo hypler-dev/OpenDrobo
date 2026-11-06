@@ -8,6 +8,24 @@ The interface follows Dashboard navigation with dark glass surfaces, animated se
 
 Tested local target: Apple silicon on macOS 26 with Xcode 26, Python 3.11+, Node 24+, npm, and Rust 1.98.0. Workspace-pinned ARM tools are used when present under `tools/`.
 
+The shared application targets macOS 14 or later. The optional ARM64 FSKit
+research extension still requires macOS 26. An Intel preview omits that extension:
+
+```sh
+python3 scripts/build_desktop.py --target x86_64-apple-darwin --without-fskit --output dist/home-intel
+```
+
+Cross-compilation requires the matching Rust standard-library target. The
+`--output` directory keeps this preview separate from the default ARM64 bundle.
+The default packaging path includes FSKit and requires a native ARM64 build;
+Intel and other cross-target previews must use `--without-fskit`.
+
+The Intel preview has been launched on macOS 14.7.7. Its registry-only scan
+found two `Drobo 5D - TB` Thunderbolt management endpoints with the original
+driver ready. Process/window metadata confirmed an active 1120 × 800 window;
+screen contents were not inspected. Discovery does not verify two physical
+enclosures, protected-capacity units, or Finder reporting.
+
 ```sh
 npm --prefix desktop ci
 make check

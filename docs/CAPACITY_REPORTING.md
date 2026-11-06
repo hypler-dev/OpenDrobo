@@ -6,7 +6,7 @@ Date: November 5, 2026. Goal: report protected usable, used, and free capacity i
 
 Original service and firmware records are recovered. Portable Rust decoder, native read-only transport bridge, and macOS FSKit read-only view are implemented and directly checked. **Physical byte units are not certified yet.** Live adapter therefore returns capacity unavailable, and FSKit statistics stay unavailable rather than displaying guessed values. Finder reporting is unchanged because extension has not been installed, activated, mounted, or tested with Drobo.
 
-Local Mac has no attached enclosure. Exact model, home macOS version, filesystem, LUN count, and adapter chain remain unverified. Spare hardware is reserved for separate read-only lab plan.
+The workspace Mac has no attached enclosure. A separately authorized home-Mac application trial verified Intel macOS 14.7.7 and two original-driver endpoints identifying as `5D - TB` over Thunderbolt; the Intel OpenDrobo preview discovered both. Registry media include HFS-type partitions, one under a 64 TiB logical disk and another under a roughly 2 TB logical disk. Physical enclosure grouping, mounted-filesystem identity, LUN scope, adapter chain and capacity byte units remain unverified. No capacity command or filesystem-statistics test ran in that discovery trial. Spare hardware remains reserved for a separate lab plan.
 
 ## Recovered vendor record
 

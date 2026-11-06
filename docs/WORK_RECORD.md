@@ -12,7 +12,7 @@ The former third-party application dependency has been removed. No external pars
 
 - `crates/opendrobo-core`: portable Rust capacity decoder/C ABI, copied Thunderbolt port/frame codecs, and an offline RMR header-candidate inspector.
 - `crates/opendrobo-probe`: a bounded, file-only inspection CLI independent of the original Drobo driver.
-- `desktop/`: shared Tauri 2 TypeScript/CSS interface with original-style navigation, dark glass surfaces, animated selection glow, empty states, and release lookup.
+- `desktop/`: shared Tauri 2 TypeScript/CSS interface with original-style navigation, dark glass surfaces, animated selection glow, empty states, and release lookup. The shared app targets macOS 14+; an Intel preview has run on macOS 14.7.7 with the optional macOS-26 FSKit module excluded.
 - `desktop/src-tauri/`: Rust commands for registry discovery, bounded read-only capacity calls, raw hexadecimal lab capture, and scoped GitHub release checks.
 - `platform/macos/transport/`: C bridge for original user-client ABI. Query is open → LUN page 4 → capacity page 2 → close; no arbitrary or write commands.
 - `platform/macos/fskit/`: Swift FSKit read-only separate-view module with path/inode binding, held descriptors, directory enumeration, and conservative symlink confinement.
@@ -26,7 +26,7 @@ The macOS bridge depends on the original Drobo management driver already being l
 
 Recovered protected-capacity fields are documented in [CAPACITY_REPORTING.md](CAPACITY_REPORTING.md), with the recovered call structure in [MACOS_MANAGEMENT_ABI.md](../research/MACOS_MANAGEMENT_ABI.md). Device byte units are **not hardware-verified**. Live decoding therefore reports unavailable; raw capture is evidence collection only. No model profile currently enables byte reporting.
 
-The FSKit view does not override an existing Apple HFS+ mount or change disk geometry. The extension is compiled and directly checked, but has not been activated, mounted, or validated in Finder. Its nonthrowing statistics callback returns zeroed fields when information is unavailable; those zeros are not a measured empty pack. The user believes the home volume uses HFS+, but this has not been confirmed. No home-Mac access or attached-device command occurred in this workspace.
+The FSKit view does not override an existing Apple HFS+ mount or change disk geometry. The extension is compiled and directly checked, but has not been activated, mounted, or validated in Finder. Its nonthrowing statistics callback returns zeroed fields when information is unavailable; those zeros are not a measured empty pack. Home registry media now confirm HFS-type partitions; mounted-filesystem identity remains unverified. Earlier offline slices did not access the home Mac; the separately authorized discovery/launch trial below reads host/registry metadata without opening a device user client or sending a capacity command.
 
 ## Validation and packaging
 
@@ -57,7 +57,7 @@ This follow-up started from published checkpoint `76be5b2d9ee0382caa9d78bb3a6d16
 
 ## Open gates
 
-Hardware proof remains open: exact enclosure model, home macOS version, filesystem, adapter chain, LUN count, byte units, Finder statistics, disconnect behavior, and multiple-LUN policy. BeyondRAID reconstruction remains research-only. Network management remains proposed authenticated host agent. No firmware, restart, shutdown, format, rebuild, array mutation, disk erase, or home-Mac operation is authorized by source checks.
+Hardware proof remains open: physical enclosure/pack grouping, mounted filesystem, adapter chain, LUN scope, byte units, Finder statistics, disconnect behavior, and multiple-LUN policy. The home trial below verifies macOS 14.7.7/Intel and `5D - TB` registry identity only. BeyondRAID reconstruction remains research-only. Network management remains proposed authenticated host agent. Source checks do not authorize firmware, restart, shutdown, format, rebuild, array mutation or disk erase; home-Mac access requires its separate accepted trial scope below.
 
 ## Active driver-independence research
 
@@ -147,6 +147,24 @@ Receipts: `artifacts/reports/drain/validation.json` binds native source hashes b
 
 No unrelated source dirt was present. Vendor inputs/artwork, raw decompilation, LLVM excerpts, toolchains, caches, generated IIG code and the local `.dext` remain ignored. No driver installation/registration/activation, live enclosure command, filesystem mount, home-Mac access, disk-pack write, firmware execution/reset/flash, deployment, tag or binary release occurred. Hardware enable and capacity-unit confirmation remain false. Per-request completion accounting is improved; global hardware quiescence, original-driver-free operation and Finder capacity remain unproven.
 
+## Home Mac launch and discovery trial
+
+The user's November 5 request authorizes launching OpenDrobo on the home Mac to check connected-device discovery. This supersedes the earlier home-access exclusion only for this bounded application trial: read-only host/registry inspection, copying a compatible preview into an isolated user directory, launching that app, and checking its own discovery output. It does not authorize replacement-driver activation, filesystem mounts, firmware commands, disk-pack writes, or changes to unrelated host services.
+
+Live preflight identified an Intel Mac running macOS 14.7.7, with the original Drobo service running and two registered management endpoints identifying as `5D - TB`. The prior ARM64/macOS-26 preview could not run there. The reviewed shared application now targets macOS 14; FSKit remains native ARM64/macOS 26 and is excluded from the Intel trial. Registry media expose HFS-type partitions beneath a 64 TiB logical disk and a roughly 2 TB logical disk. Two endpoints are not proof of two physical enclosures or verified single-LUN scope. Mounted-filesystem identity, original-driver independence and capacity byte units remain unproven.
+
+Exact changed paths: `scripts/build_desktop.py` adds bounded `--target`, `--without-fskit` and `--output` options, target-correct source/archive paths and metadata, early refusal of unsupported FSKit target combinations, stale copied-extension removal for no-FSKit output, and signing/verification. `desktop/src-tauri/tauri.conf.json` lowers only the shared app minimum to 14.0. `README.md`, `docs/CAPACITY_REPORTING.md`, and this record document build/runtime proof and remaining limits. No native transport, driver, filesystem or UI-interaction code changed.
+
+Validation passed: `env TMPDIR=/private/tmp make check` (all 18 lanes); Intel cross-build with `--target x86_64-apple-darwin --without-fskit --output dist/home-intel`; native ARM64 packaging with FSKit using `--output dist/arm64-validation`; Python compilation, CLI help, early Intel-with-FSKit refusal and whitespace checks. The official Intel Rust standard library was checksum-verified and installed only into the ignored local toolchain prefix. Python's initial download failed certificate validation; macOS curl succeeded with TLS verification enabled. Both app builds use an SDK-26.2 linker and shared app minimum 14.0; FSKit's own minimum remains 26.0. The separate ARM64 validation output preserves the prior default preview.
+
+Intel archive SHA-256: `521efaaabecc9332320801031117c294be6ce57cacab7653e825f9bd2ba6db9b`. The private home copy matched before extraction. Strict deep signature verification passed locally and on the home Mac. The Intel app is x86_64 with minimum macOS 14.0 and contains no `.appex` or `.dext`. Its `--scan-json` exited 0 and returned two `Drobo 5D - TB` endpoints, each Thunderbolt and `driverReady: true`. Launch Services opened that exact isolated app; subsequent process/window metadata confirmed finished launch, active state and one onscreen 1120 × 800 window. Screen contents were not inspected, so rendered device cards are not claimed. The app remains open for the user.
+
+The private trial lives under `~/Applications/OpenDroboTrials/20261105-521efaaabecc/OpenDrobo.app`. No existing app was replaced. No capacity/user-client, firmware or array command was sent; no driver/extension activation, mount, disk-pack write, original-service restart, host-security change, public binary upload, tag or release occurred. Capacity units and Finder behavior remain unverified. The original driver still supplies the discovered management endpoints.
+
+Root controlled remote access, compatibility decisions, toolchain/build integration, validation and private deployment. Native OpenAI `gpt_worker` task `intel_preview_builder` produced the two bounded build/config edits; root preserved ARM64 naming and stripped stale no-FSKit extension output. Fresh OpenAI `gpt_reviewer` task `intel_preview_review` returned source PASS before the copy/launch, then **PASS, no actionable P1/P2/P3**, for the final five-path source/docs slice and recorded build/runtime evidence. Both role TOMLs configure `gpt-5.6-terra`; runtime model IDs are not exposed. No GLM, Spark or retired-model lane was used.
+
+Ignored receipts under `artifacts/reports/home-mac/` retain source hashes, both build logs, full-check results, selected preflight observations, archive transfer/checksum, signature/scan output, launch and window metadata. An initial JXA window-observer conversion failed after successful app launch; a corrected observer confirmed process/window state. That observer failure was not an application failure. Raw vendor assets, toolchains, packages and private host receipts remain outside public source. Source publication uses the standing authorization; this record's containing commit identifies the compatibility change. No unrelated source dirt was present.
+
 ## Next safe slice
 
 Add stronger SDK-service backend mocks for drain/source cancellation and partial lifecycle; trace remaining completion/error paths and hardware-wide quiescence without treating PCI Close/reset as proof; complete SCSI sense/mode-page and reset/power policies. Define entitlement/provisioning and a named spare-unit activation plan only after those gates are met. Connect an independent management service to the application with verified device/LUN/unit binding. Capture true protected capacity and compare FSKit `statfs`/Foundation/Finder on the same read-only view. A smaller READ CAPACITY is not a safe way to change existing HFS+ statistics. BeyondRAID member locations/generations and real-image reconstruction remain separate research.
@@ -156,9 +174,9 @@ Add stronger SDK-service backend mocks for drain/source cancellation and partial
 ```text
 Repo: OpenDrobo; start with pwd, git branch --show-current, git rev-parse HEAD, git status --short --branch.
 Read: README.md -> docs/WORK_RECORD.md -> research/THUNDERBOLT_TRANSPORT.md -> research/BEYONDRAID_LAYOUT.md -> docs/CAPACITY_REPORTING.md.
-Truth: Rust/Tauri app still needs original live driver; 5D selected SGL field resolved; graceful owned-request drain integrated; twelve ARM64 objects, seven native suites and all18 lanes pass; hardware gate closed, no Finder proof.
-Scope: stronger service/cancellation mocks; remaining firmware/error paths; proven hardware quiescence and SCSI/power behavior; independent app management binding; capacity-unit/FSKit evidence; RMR image research.
-Do not: access home Mac, install/activate drivers or extensions, mount, flash, format, erase, mutate arrays, or publish vendor artifacts.
-Validate: make check; scripts/check_driverkit.py after native changes; make build after app/package changes; fresh review; hardware only on named spare plan.
+Truth: Shared app min14; Intel14.7.7 private preview open, own scan sees two 5D-TB driver-ready endpoints; ARM64/FSKit packaging and all18 checks pass. Original driver still required; hardware gate closed; no capacity/Finder proof.
+Scope: finish bounded home discovery trial evidence; stronger service/cancellation mocks; remaining firmware/error paths; hardware quiescence and SCSI/power behavior; verified capacity binding/units/FSKit; RMR research.
+Do not: expand home access beyond authorized read-only OpenDrobo trial; touch unrelated services, activate drivers/extensions, mount, flash, format, erase, mutate arrays, or publish vendor artifacts/private receipts.
+Validate: make check; native check after driver changes; target-specific preview build after package changes; fresh review; activation only under a separate named spare plan.
 Ledger: docs/WORK_RECORD.md; artifacts/reports; https://github.com/hypler-dev/OpenDrobo.
 ```
