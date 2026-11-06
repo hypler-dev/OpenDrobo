@@ -20,6 +20,8 @@ Finder reporting remains unchanged. The current separate-view FSKit research mod
 
 Service protected usage and OS filesystem usage need not match. Metadata, protection and allocation accounting belong to different layers. Never add the pool total once per LUN, subtract one LUN's OS usage from a shared pool and call the result that LUN's free space, or present the SSD's raw capacity as writable user storage. Cache-used/free values remain unknown because the recovered record does not establish them.
 
+Capacity → Usage shows protected allocation, protected free space and usable total together. OS filesystem usage remains a separate reading; raw installed drive capacity is secondary hardware information. Physical protection overhead and cache occupancy remain unavailable. Mounted volumes group only by native enclosure ancestry and show their own OS-used bytes. Thin-provisioned logical totals and free space stay in labeled details and never replace protected free capacity.
+
 ## Original-service observer
 
 `desktop/src-tauri/src/service.rs` uses a fixed read-only subscription to `127.0.0.1:4502`. It validates frame identity, version, event type, reserved byte, declared lengths, strict XML and complete advertised device membership. Bounds are 16 frames, 512 KiB per XML record, 2 MiB per subscription and a 35-second absolute deadline. Internal ESA identifiers correlate LUNs to a shared pool; UI/MCP identifiers are SHA-256 pseudonyms. These identifiers are not authentication credentials.

@@ -37,11 +37,13 @@ def main() -> int:
         check("statistics-tests", ["node", "--experimental-strip-types", "--test", "tests/statistics.test.mjs"], cwd=ROOT / "desktop")
         check("status-selection-tests", ["node", "--experimental-strip-types", "--test", "tests/status_selection.test.mjs"], cwd=ROOT / "desktop")
         check("drive-indicator-tests", ["node", "--experimental-strip-types", "--test", "tests/drive_indicator.test.mjs"], cwd=ROOT / "desktop")
+        check("storage-presentation-tests", ["node", "--experimental-strip-types", "--test", "tests/storage_presentation.test.mjs"], cwd=ROOT / "desktop")
         check("frontend-types", ["npm", "run", "check"], cwd=ROOT / "desktop")
         check("frontend-build", ["npm", "run", "build"], cwd=ROOT / "desktop")
         check("desktop-format", ["cargo", "fmt", "--manifest-path", "desktop/src-tauri/Cargo.toml", "--check"])
         check("desktop-tests", ["cargo", "test", "--locked", "--manifest-path", "desktop/src-tauri/Cargo.toml"])
         if platform.system() == "Darwin":
+            check("native-volume-icons", [sys.executable, "scripts/check_volume_icons.py"])
             check("driverkit-contract", [sys.executable, "scripts/check_driverkit.py"])
             with tempfile.TemporaryDirectory(prefix="opendrobo-wire-") as temporary:
                 executable = f"{temporary}/wire-checks"

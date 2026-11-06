@@ -3,9 +3,11 @@ fn main() {
         cc::Build::new()
             .file("../../platform/macos/transport/OpenDroboTransport.c")
             .file("../../platform/macos/transport/CapacityWire.c")
+            .file("../../platform/macos/transport/VolumeIcon.m")
+            .flag("-fobjc-arc")
             .warnings(true)
             .compile("opendrobo_transport");
-        for framework in ["IOKit", "DiskArbitration", "CoreFoundation"] {
+        for framework in ["AppKit", "IOKit", "DiskArbitration", "CoreFoundation"] {
             println!("cargo:rustc-link-lib=framework={framework}");
         }
     }

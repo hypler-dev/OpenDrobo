@@ -23,3 +23,5 @@ Drobo documentation and device research contain HFS+/NTFS references for support
 Protected-pool capacity and OS logical capacity are different measurements. A thin-provisioned or multi-LUN logical disk can show a large host ceiling while protected pool has smaller actual total. OpenDrobo displays both values and never shrinks READ CAPACITY or rewrites existing HFS+ geometry to make Finder appear different.
 
 BeyondRAID work remains offline research. Repository contains bounded parsers and evidence notes for candidate headers and transport fields. No parser currently proves member order, generation selection, parity reconstruction, or safe write-back.
+
+Spare-unit test preparation is available through the [lab scaffold](SPARE_UNIT_LAB.md). It generates offline manifests and ordered evidence plans before hardware arrives. Format/reset, member reconstruction and write-back remain future manual research gates; preparing a plan does not add those capabilities to OpenDrobo.

@@ -14,6 +14,8 @@
 
 static const char *driver_class = "com_TrustedData_driver_VendorSpecificType00";
 
+_Static_assert(sizeof(ODNativeVolume) == 4752, "ODNativeVolume ABI changed");
+
 static uint32_t number_property(io_registry_entry_t entry, const char *key) {
     CFStringRef name = CFStringCreateWithCString(NULL, key, kCFStringEncodingUTF8);
     if (!name) return 0;
@@ -102,6 +104,23 @@ static io_service_t driver_for_media(io_service_t media) {
 }
 
 static uint64_t physical_key(uint64_t registry_id);
+
+static void driver_name(uint64_t registry_id, char *output, size_t limit) {
+    if (!output || !limit) return;
+    output[0] = 0;
+    if (!registry_id) return;
+    io_service_t service = IOServiceGetMatchingService(kIOMainPortDefault,
+        IORegistryEntryIDMatching(registry_id));
+    if (!service) return;
+    if (!IOObjectConformsTo(service, driver_class) || !known_identity(service, NULL)) {
+        IOObjectRelease(service);
+        return;
+    }
+    char product[128] = {0};
+    string_property(service, "Product Identification", product, sizeof(product));
+    IOObjectRelease(service);
+    snprintf(output, limit, "Drobo %s", product[0] ? product : "management endpoint");
+}
 
 int32_t od_list_devices(ODNativeDevice *devices, size_t limit, size_t *count) {
     if (!count || (!devices && limit)) return -10001;
@@ -347,6 +366,8 @@ int32_t od_list_volumes(ODNativeVolume *volumes, size_t limit, size_t *count) {
             ODNativeVolume *volume = volumes + *count;
             memset(volume, 0, sizeof(*volume));
             volume->registry_id = disk_device(session, path);
+            volume->physical_registry_group = physical_key(volume->registry_id);
+            driver_name(volume->registry_id, volume->device_name, sizeof(volume->device_name));
             volume->read_only = (fs->f_flags & MNT_RDONLY) != 0;
             snprintf(volume->id, sizeof(volume->id), "%08x-%08x",
                 (uint32_t)fs->f_fsid.val[0], (uint32_t)fs->f_fsid.val[1]);

@@ -10,7 +10,7 @@ The MCP assessment covers the current desktop source and its host/service bounda
 
 The Codex Security managed scan (`7bef81a8-678a-43f7-a184-a3773956952c`) could not save canonical artifacts. Its tool repeatedly returned `Scan output parent must not be group- or world-writable without the sticky bit.` The authoritative output path has a `/Volumes/Storage` ancestor with mode `0775`; all scan descendants were private. No existing-scan relocation tool was available. Root did not change volume permissions, weaken plugin checks, or write replacement canonical artifacts. The scan was marked failed for this confirmed storage blocker; no sealed report or successful scan completion is claimed. The original candidate, generated model, and source validation were saved only through the tool's temporary artifact storage and may be cleaned by the OS. This is a source-backed assessment with an incomplete managed publication lane, not a clean security certification. No runtime exploit was performed. Token usage was not returned.
 
-The latest source passes all 22 software-check lanes, including 41 desktop backend tests, nine statistics tests, six Status-selection tests, four drive-indicator tests, 40 portable core tests, seven probe tests and 29 Python tests. Intel and ARM64 preview packages pass packaging checks. Ten SDK MCP tool calls pass against the final private Intel preview on the home Mac. The current runtime observations and remaining UI-input verification are recorded below. The original driver/service, Finder geometry, driver activation, filesystem mounts, live light/power tests and disk-pack mutation remain outside this packet.
+The latest desktop source passes all 24 software-check lanes, including 42 desktop backend tests, nine statistics tests, six Status-selection tests, six drive-indicator tests, five storage-presentation tests, 40 portable core tests, seven probe tests and the Python suites. The native icon lane checks PNG rendering, fixed dimensions, output bounds and synthetic registry/path binding. Intel and ARM64 preview packages pass packaging checks. Ten SDK MCP tool calls pass against the final private Intel preview on the home Mac. The current runtime observations and remaining UI-input verification are recorded below. The original driver/service, Finder geometry, driver activation, filesystem mounts, live light/power tests and disk-pack mutation remain outside this packet.
 
 The user subsequently accepted optional MCP and requested more elaborate statistics plus a firmware-grounded feature assessment and an explanation of macOS software RAID. Extend Statistics with actual time-range selection, protected/free/OS-used trends, utilization and signed changes, observation gaps, reported drive capacities and SSD life, and session-scoped activity. Byte arithmetic must remain exact, missing observations must not become zero or an outage, and growth rates must be described as observed averages rather than forecasts. Additional telemetry command names are research leads until their payloads, units and model capability are recovered. Neither original firmware nor the BeyondRAID on-disk format has been modified. No AppleRAID conversion, member-disk passthrough, formatting or array migration is authorized by this assessment. The follow-up question about connecting two matching Drobos is an architecture assessment: Thunderbolt chaining is connectivity, while a potential host-managed mirror or stripe would retain two separate onboard BeyondRAID pools. OpenDrobo has not implemented or validated this arrangement; virtual-member ancestry, mount guards, thin-provisioned capacity and failure recovery remain open. See [firmware capabilities](FIRMWARE_CAPABILITIES.md).
 
@@ -19,6 +19,18 @@ The user then identified the stretched Status selector in the current home-Mac v
 The next accepted Status amendment automatically opens the sole observed Drobo; with multiple units it presents enclosure icons and opens System Information for the selected identity. Selection is read-only: automatic display changes must not grant a control target, and device disappearance clears any prior control authority. Multiple identical models need distinct opaque unit labels. The user authorized briefly resuming Screen Sharing control to verify the interface. Device actions remain outside the home test.
 
 The user also requested original-style green/amber/red enclosure indicators. Recover the original per-slot LED selector before applying colors; keep unknown or stale observations gray, expose color-independent text, and leave physical lights unchanged. This amendment does not decode every health bit or authorize device-control execution.
+
+## Capacity Usage and mounted-volume correction
+
+The user reported incorrect information under Capacity → Usage, specified the device label `Drobo 5D - TB` without an invented unit number, and requested a tidy Volumes list using native macOS icons and clear drive relationships. This is the accepted follow-up scope. Read-only home observations on November 6 show approximately 20.00 TB installed raw data capacity, 11.75 TB protected usable capacity, 3.75 TB protected allocation, 7.99 TB protected free space and 3.76 TB OS filesystem usage. Usage previously emphasized raw installed capacity and incorrectly described the entire used/free/protection breakdown as unavailable, despite available protected used/free values. Physical protection overhead and cache occupancy are still not decoded.
+
+The correction must distinguish these accounting domains, preserve exact byte arithmetic, display the reviewed 5D Thunderbolt label, group mounted Drobo volumes only by native enclosure ancestry, and obtain bounded native icons at runtime without distributing Apple assets. Equal model or volume names do not establish a shared enclosure; unknown grouping remains explicit. BeyondRAID volumes cannot be assigned to individual bays from current evidence. Native host permissions, original service ownership, Finder geometry, driver/FSKit activation and all disk-pack/control gates remain unchanged. The user also requested matching bay lights on All Drobos and explanations of indicator meaning and action rather than color names. Inventory and Status must share the recovered per-slot selector, preserve bay positions and unknown/stale states, distinguish capacity warnings from drive faults, and honor Reduce Motion.
+
+Validation requires focused accounting/grouping tests, the repository check suite, Intel/ARM64 packages, fresh independent review and read-only home-Mac UI checks.
+
+## Spare-unit lab preparation
+
+The user will provide a working spare enclosure and disposable disks and requested scaffolding before hardware arrives. The accepted scope is an offline lab kit: manifest templates, no-hardware preparation plans, protected/home unit and disk exclusions, bounded copied-baseline receipts, an ordered manual test sequence and developer/operator documentation. Missing identities must remain pending, and plan generation must never establish destructive authority or report hardware ready. This scope adds no formatter, reset dispatcher, filesystem mount, replacement-driver activation, member-disk reconstruction or write-back path. The home data pack remains excluded. See [lab preparation](SPARE_UNIT_LAB.md).
 
 ## Accepted intent
 
@@ -198,8 +210,8 @@ Add stronger SDK-service backend mocks for drain/source cancellation and partial
 ```text
 Repo: OpenDrobo; start with pwd, git branch --show-current, git rev-parse HEAD, git status --short --branch.
 Read: README.md -> docs/WORK_RECORD.md latest packet and final evidence -> docs/DEVELOPER_GUIDE.md -> docs/MANAGEMENT_FEATURES.md -> docs/FIRMWARE_CAPABILITIES.md -> task-specific research notes.
-Truth: The shared app targets macOS 14+. The final 96bb private Intel GUI was launched and visually verified on November 6: Status automatically opens the sole 5D in System Information, and five bay indicators render green. One 5D Thunderbolt pool has two HFS+ LUNs, five HDDs and an mSATA cache; protected capacity remains separate from the logical ceiling. The prior 22 checks and both Mac packages passed. The original driver/service remains required; FSKit is inactive and Finder is unchanged.
-Scope: Minimum-window and accessibility verification, plus diagnosis of remote pointer activation, remain open. Subsequent work covers bounded telemetry schema recovery, local-service identity attestation and named spare-unit validation. Host RAID across two enclosures remains an assessment; it is not supported or provisioned.
+Truth: The shared app targets macOS 14+. Final private Intel preview 9f4a is running on the home Mac with Drobo 5D - TB, five aligned inventory bay indicators and unchanged original service. Usage now separates protected allocation/free/usable total from OS usage and raw disks; Volumes uses native icons and hardware ancestry. All 24 check lanes and both Mac packages passed; original driver/service remains required, FSKit inactive, Finder unchanged.
+Scope: The offline spare-unit lab scaffold is prepared. Next is the requested full application quality and v1.0 readiness audit, including user-facing development-text cleanup; future hardware tests require the promised working spare enclosure and disposable disks. Minimum-window/accessibility, multiple enclosures and live fault transitions remain unverified. Broader provider adapters and BeyondRAID reconstruction remain future work.
 Do not: expand home access beyond read-only OpenDrobo trial; alter unrelated services/ACLs/exports, activate drivers/extensions, mount, flash, format, erase, mutate arrays, execute light/power commands on the home data pack, or publish vendor assets/private receipts.
 Validate: make check after relevant source changes; exact target package/signature and read-only home smoke; fresh source/UI review. Hardware activation and host RAID require separately identified spare hardware and an accepted write plan.
 Ledger: docs/WORK_RECORD.md; ignored artifacts/reports/home-capacity/home-reference/; https://github.com/hypler-dev/OpenDrobo.
@@ -321,4 +333,63 @@ docs/MANAGEMENT_FEATURES.md
 docs/WORK_RECORD.md
 research/MACOS_MANAGEMENT_ABI.md
 scripts/check_desktop.py
+```
+
+## Capacity, volume presentation and inventory indicator validation
+
+Source base: `d5ae42d96e516a27c02ddd758cb70e2147a08a62`, `main`. The Usage defect was presentation of raw installed capacity as its primary number while labeling available protected used/free accounting unavailable. Usage now displays protected used/free/usable totals together, with separate OS filesystem usage, raw installed data-drive capacity and SSD life. Invalid or missing slot measurements remain unavailable rather than becoming zero. The reviewed 5D Thunderbolt display label is `Drobo 5D - TB`; the model remains separately reported in System Information, and no invented single-unit number is appended.
+
+Volumes now displays compact rows with runtime-native macOS icons, filesystem, mount path, access and decimal filesystem-used bytes. It groups only by the native physical enclosure key; distinct per-LUN driver IDs remain separate fields. Matching names never establish hardware identity, and unknown ancestry remains explicit. Logical totals/available space remain closed technical details with thin-provisioning guidance. No per-volume assignment to a BeyondRAID member bay is inferred.
+
+All Drobos and Status share the recovered per-bay LED selector. Inventory shows five fixed bay positions with text for affected bays; missing/stale observations cannot become ready. Labels distinguish low capacity, critical capacity, drive fault and protection activity and provide guidance rather than repeating colors. The original guide and recovered resource evidence are recorded in the management ABI note. Real failures and physical lights were not manipulated.
+
+Validation and home evidence:
+
+- `make check`: 24/24 lanes passed after the final thumbnail alignment change; the new lab tests receive their final result in the lab record below. The desktop backend has 42 tests. Frontend type/build checks and Intel/ARM64 packaging passed after alignment, with all 116 desktop/package input hashes unchanged during verification.
+- Intel archive SHA-256: `9f4a129360fae94db7621b00c886df1111ff27834beccfcb05972f001c817e06`.
+- ARM64 archive SHA-256: `0e8d76ea615f3abc27e24332edefadbedd643def906ef180d3802ecf23470f1e`.
+- Final private home preview: `/Users/jeff/Applications/OpenDroboTrials/20261106-9f4a129360fa/OpenDrobo.app`, strict signature/Intel/no-extension checks passed. All eight bounded read-only CLI modes and ten SDK MCP tools passed. Both mounted volumes report the same physical enclosure key, distinct driver endpoint IDs, the expected product name and 5,740 base64 characters per native icon.
+- Computer-use visibly confirmed five aligned green inventory bay lights, the exact device name and ready-bay text in final `9f4a`. The preceding `b094` GUI confirmed Usage at 3.75 TB protected used, 7.99 TB free and 11.75 TB usable, with OS-used 3.76 TB and raw installed 20.00 TB kept separate. It also showed two compact HFS+ rows with native Mac icons and shared enclosure grouping. Only thumbnail alignment CSS changed between these builds; Usage and volume code did not. Final process readback confirmed preview PID `75038` at the exact final path and original DDService PID `375` unchanged.
+- Remote pointer activation remained unreliable, and navigation also changed outside automation. Claims cover visibly observed states rather than attributing every interaction to automation. Minimum-window layout, full VoiceOver, multiple enclosures and live fault/stale hardware transitions remain open. Offline tests cover bay fault position, missing/stale suppression and accounting/grouping edge cases.
+
+Fresh `usage_volumes_review` (`gpt_ui_review`, OpenAI) passed after fixes for control-page naming consistency, unknown slot accounting and local table overflow. It reviewed source plus controller-supplied rendered observations; it did not operate the home GUI. Fresh `volume_backend_review` (`gpt_reviewer`, OpenAI) passed after exception-safe graphics-state restoration, standalone-probe linkage isolation, premultiplied bitmap rendering and native binding/size tests. The bounded backend implementation used `native_volume_identity` (`gpt_worker`); root produced and integrated the UI and test changes. These roles are configured as `gpt-5.6-terra`; runtime model IDs are not exposed. No GLM, Spark or retired model lane was used.
+
+Receipts remain ignored under `artifacts/reports/home-capacity/usage-volumes/`. Vendor assets, native runtime icon payloads and private host captures are not published. No physical light/power command, driver installation/activation, FSKit mount, firmware operation, sharing/ACL change or disk-pack write occurred. Finder geometry and the original driver dependency remain unchanged. No public binary release or tag was created.
+
+## Spare-unit scaffold validation and next v1.0 audit
+
+The offline lab kit is implemented in `scripts/spare_unit_lab.py`, with operator documentation in `docs/SPARE_UNIT_LAB.md`. `init` creates a pending manifest, and `plan --template` generates a six-case preparation sequence without hardware or invented identities. Real-manifest validation requires strict SHA-256 fingerprint syntax, confirmed target fields and separate protected/home-unit and protected-member exclusions. Supplied evidence envelopes require exact unit/member/target binding, integer timestamps within the freshness window and nonempty copied payloads. Whole-envelope hashes and byte counts preserve bounded operator evidence. This is operator-asserted metadata, not hardware attestation or a provider-protocol certificate.
+
+No plan reports hardware ready or dispatches an operation. Format/reset, capacity profiling, migration, fault replacement and reconstruction remain future manual cases, with destructive authority required separately at execution time. Template artifacts were prepared privately under `artifacts/spare-unit-lab/20261106-preparation/`; they report `PENDING_HARDWARE`, `ready: false` and blocked execution. No spare hardware has been observed.
+
+Fresh `spare_lab_review` (`gpt_reviewer`, OpenAI, configured `gpt-5.6-terra`) returned PASS after fixes for stale/unbound evidence, target metadata binding, protected disk exclusion, strict fingerprint/schema types and empty payload rejection. Root integrated the fixes; `native_volume_identity` (`gpt_worker`, same configured provider/model) produced the bounded scaffold. Runtime model IDs remain unexposed. `make check` passed all 24 lanes, and after the final lab-only review fixes the complete Python suite passed 39 tests, including ten lab cases. No frontend/native package input changed during those final lab fixes. `git diff --check` passed.
+
+The user then requested a full application quality audit, removal of temporary/development-facing product text and preparation for v1.0. That is the next accepted packet. Audit scope covers user-facing flows, state and accounting correctness, error handling, native/service/MCP boundaries, package/release configuration, tests, documentation and claimed platform support. Remove development clutter while retaining useful capability and safety explanations. Audit findings and hardware/release gates must remain explicit; this request does not establish new Linux/Windows transport support, independent BeyondRAID recovery or a successful public release. No public binary/tag publication is part of the completed scaffold checkpoint.
+
+This containing commit identifies the Usage/Volumes/indicator/scaffold checkpoint. Exact changed source and documentation paths:
+
+```text
+desktop/src-tauri/build.rs
+desktop/src-tauri/src/system.rs
+desktop/src/drive_indicator.ts
+desktop/src/main.ts
+desktop/src/storage_presentation.ts
+desktop/src/styles.css
+desktop/tests/drive_indicator.test.mjs
+desktop/tests/storage_presentation.test.mjs
+docs/CAPACITY_REPORTING.md
+docs/DEVELOPER_GUIDE.md
+docs/MANAGEMENT_FEATURES.md
+docs/MCP.md
+docs/SPARE_UNIT_LAB.md
+docs/STORAGE_SUPPORT.md
+docs/WORK_RECORD.md
+platform/macos/include/OpenDroboTransport.h
+platform/macos/transport/OpenDroboTransport.c
+platform/macos/transport/VolumeIcon.m
+research/MACOS_MANAGEMENT_ABI.md
+scripts/check_desktop.py
+scripts/check_volume_icons.py
+scripts/spare_unit_lab.py
+tests/test_spare_unit_lab.py
 ```

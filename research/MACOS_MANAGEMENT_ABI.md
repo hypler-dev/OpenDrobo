@@ -105,3 +105,18 @@ The shipped x86_64 Dashboard SHA-256 `4abe55422533ed9ca2220927cdbd26dd98c9e2f4a1
 The decoder accepts only canonical unsigned 32-bit decimal input, preserves the original low-nibble mask, and suppresses stale indicators. It reports LED colors rather than diagnosing the entire pack or asserting that physical LEDs are synchronized with animation phase. Only the exact 5D front-bay view currently uses this mapping. Original binary bytes, resources and disassembly remain ignored research inputs.
 
 The original field binding was traced end to end. `DroboDevice::Update` reads XML `mStatus` at `0x1002793cd..0x1002793dc`, passes its byte to the slot-model constructor at `0x1002796ca..0x1002796ed`, and stores it at model `+0x21`; `mDiskState` instead goes to `+0x22`. `StatusPresenter::UpdateStatus` loads `+0x21` at `0x100133288`, copies it into the first word of a 24-byte `SlotInfoStruct`, and assigns the vector to property `+0xeb8` at `0x1001333c9`. `GLDetailedDeviceStatus::Update` snapshots that property and copies each first `u32` into its four-byte status vector at `+0x2778` (`0x1001589e6..0x100158a0c`). `DrawLEDs` then applies the low-nibble selector. This establishes the XML field-to-color path without guessing from a healthy unit or synthetic fixture.
+
+### Indicator meaning and inventory presentation
+
+The per-slot selector now drives All Drobos thumbnails and Status using the same bay positions. It remains a reported light convention, not a complete decode of unit health flags. Local original `strings_en.xml` keys `kStatusString_BadDisk`, `kStatusString_SystemFull_AddDisk`, `kStatusString_SystemFull_ReplaceDisk`, `kStatusString_YellowThresholdExceeded*` and `kStatusString_RelayoutInProgress*` distinguish replacement faults, exhausted capacity, low space and protection activity. The original [5D Getting Started Guide](https://images-na.ssl-images-amazon.com/images/I/B1sve69GJvS.pdf), printed pages 9 and 32–34, further establishes that incompatible SSDs can blink red and alternating yellow/green means data protection. These sources support the following paraphrased guidance:
+
+| Indicator | Meaning shown | Guidance |
+| --- | --- | --- |
+| Green | Ready; no bay action indicated | Does not certify overall array health |
+| Amber/yellow | Low space | Plan added capacity or a larger drive |
+| Solid red | Capacity critical | Add capacity or upgrade the indicated drive; do not equate with drive failure |
+| Alternating green/amber | Data protection underway | Keep drives installed until completion |
+| Flashing red | Drive fault | Review the bay for failure or an incompatible drive and replacement |
+| Gray | Missing, unsupported or stale indicator | Refresh before assessing the bay |
+
+No activity, capacity-gauge or physical power LED is fabricated from allocation percentages. Inventory card text names affected bays, and missing records never become ready. Real fault transitions remain untested on the home data pack.

@@ -31,6 +31,8 @@ All are read-only from the client's perspective. No tool accepts an execute requ
 
 Responses may include mount paths, share names, device/model labels, firmware display fields, and aggregate byte counts. They do not expose serial numbers, credentials, raw service XML, filesystem contents, or unrestricted command arguments. Byte-sized `u64` values use decimal strings. Pool responses separate protected total/used/free from OS logical usage and identify service-derived readings with `sourceTrust: "unverified-loopback"`.
 
+Storage metadata includes per-volume driver and physical-enclosure identifiers, the driver product name, and optional bounded native macOS volume icons generated at runtime. Icons are read only for verified mounted Drobo roots; callers cannot choose paths.
+
 Sharing reports native SMB/NFS service status. SMB exports are included only when their configured path falls beneath a verified Drobo mount root using component boundaries; symlink targets are not resolved, so this is metadata classification rather than a file-access boundary; OpenDrobo does not modify native accounts, permissions, or ACLs. Linux and Windows Drobo adapters are not implemented. Hardware-specific telemetry is bounded: firmware version/release date and drive manufacturer/model/firmware revision are shown only when supplied, as bounded ASCII fields; temperature, RPM, and serial identity are not inferred.
 
 ## Security and trust assessment

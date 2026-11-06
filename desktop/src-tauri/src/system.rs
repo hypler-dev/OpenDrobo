@@ -24,34 +24,102 @@ pub fn capabilities() -> Value {
 }
 
 #[cfg(target_os = "macos")]
-pub fn storage_status() -> Result<Value, String> {
-    use std::ffi::{CStr, c_char};
-    #[repr(C)]
-    struct NativeVolume {
+use std::ffi::{CStr, c_char};
+
+#[cfg(target_os = "macos")]
+#[repr(C)]
+struct NativeVolume {
+    registry_id: u64,
+    physical_registry_group: u64,
+    total_bytes: u64,
+    used_bytes: u64,
+    available_bytes: u64,
+    read_only: u32,
+    statistics_available: u32,
+    id: [c_char; 64],
+    name: [c_char; 256],
+    device_name: [c_char; 256],
+    filesystem: [c_char; 32],
+    mount_path: [c_char; 4096],
+}
+
+#[cfg(target_os = "macos")]
+const _: () = assert!(std::mem::size_of::<NativeVolume>() == 4752);
+
+#[cfg(target_os = "macos")]
+unsafe extern "C" {
+    fn od_list_volumes(volumes: *mut NativeVolume, limit: usize, count: *mut usize) -> i32;
+    fn od_volume_icon_png_base64(
         registry_id: u64,
-        total_bytes: u64,
-        used_bytes: u64,
-        available_bytes: u64,
-        read_only: u32,
-        statistics_available: u32,
-        id: [c_char; 64],
-        name: [c_char; 256],
-        filesystem: [c_char; 32],
-        mount_path: [c_char; 4096],
+        mount_path: *const c_char,
+        output: *mut c_char,
+        limit: usize,
+        length: *mut usize,
+    ) -> i32;
+}
+
+#[cfg(target_os = "macos")]
+fn native_text(value: &[c_char]) -> String {
+    // The C adapter clears each bounded record and terminates its strings.
+    unsafe { CStr::from_ptr(value.as_ptr()) }
+        .to_string_lossy()
+        .into_owned()
+}
+
+#[cfg(target_os = "macos")]
+fn native_optional_text(value: &[c_char]) -> Option<String> {
+    let value = native_text(value);
+    (!value.is_empty()).then_some(value)
+}
+
+#[cfg(target_os = "macos")]
+fn volume_icon(volume: &NativeVolume) -> Option<String> {
+    const OUTPUT_LIMIT: usize = 16 * 1024 + 1;
+    if volume.registry_id == 0 {
+        return None;
     }
-    const _: () = assert!(std::mem::size_of::<NativeVolume>() == 4488);
-    unsafe extern "C" {
-        fn od_list_volumes(volumes: *mut NativeVolume, limit: usize, count: *mut usize) -> i32;
+    let mut output = [0 as c_char; OUTPUT_LIMIT];
+    let mut length = 0;
+    let status = unsafe {
+        od_volume_icon_png_base64(
+            volume.registry_id,
+            volume.mount_path.as_ptr(),
+            output.as_mut_ptr(),
+            output.len(),
+            &mut length,
+        )
+    };
+    if status != 0 || length == 0 || length >= output.len() {
+        return None;
     }
-    fn text(value: &[c_char]) -> String {
-        // The C adapter clears each bounded record and terminates its strings.
-        unsafe { CStr::from_ptr(value.as_ptr()) }
-            .to_string_lossy()
-            .into_owned()
+    let bytes = unsafe { CStr::from_ptr(output.as_ptr()) }.to_bytes();
+    if bytes.len() != length {
+        return None;
     }
+    String::from_utf8(bytes.to_vec()).ok()
+}
+
+#[cfg(target_os = "macos")]
+fn volume_json(volume: &NativeVolume, icon_png_base64: Option<String>) -> Value {
+    let measured = volume.statistics_available != 0;
+    json!({"id":native_text(&volume.id),"name":native_text(&volume.name),"filesystem":native_text(&volume.filesystem),
+    "mountPath":native_text(&volume.mount_path),
+    "totalBytes":measured.then(||volume.total_bytes.to_string()),
+    "usedBytes":measured.then(||volume.used_bytes.to_string()),
+    "availableBytes":measured.then(||volume.available_bytes.to_string()),
+    "deviceId":volume.registry_id.to_string(),
+    "enclosureId":(volume.physical_registry_group != 0).then(||volume.physical_registry_group.to_string()),
+    "deviceName":native_optional_text(&volume.device_name),
+    "iconPngBase64":icon_png_base64,
+    "provider":"drobo","accounting":"os-logical","readOnly":volume.read_only!=0})
+}
+
+#[cfg(target_os = "macos")]
+pub fn storage_status() -> Result<Value, String> {
     let mut records: Vec<NativeVolume> = (0..128)
         .map(|_| NativeVolume {
             registry_id: 0,
+            physical_registry_group: 0,
             total_bytes: 0,
             used_bytes: 0,
             available_bytes: 0,
@@ -59,6 +127,7 @@ pub fn storage_status() -> Result<Value, String> {
             statistics_available: 0,
             id: [0; 64],
             name: [0; 256],
+            device_name: [0; 256],
             filesystem: [0; 32],
             mount_path: [0; 4096],
         })
@@ -71,17 +140,7 @@ pub fn storage_status() -> Result<Value, String> {
     let volumes: Vec<Value> = records[..count]
         .iter()
         .filter(|v| v.registry_id != 0)
-        .map(|v| {
-            let measured = v.statistics_available != 0;
-            json!({"id":text(&v.id),"name":text(&v.name),"filesystem":text(&v.filesystem),
-            "mountPath":text(&v.mount_path),
-            "totalBytes":measured.then(||v.total_bytes.to_string()),
-            "usedBytes":measured.then(||v.used_bytes.to_string()),
-            "availableBytes":measured.then(||v.available_bytes.to_string()),
-            "deviceId":(v.registry_id!=0).then(||v.registry_id.to_string()),
-            "provider":if v.registry_id!=0 {"drobo"} else {"host"},
-            "accounting":"os-logical","readOnly":v.read_only!=0})
-        })
+        .map(|v| volume_json(v, volume_icon(v)))
         .collect();
     Ok(json!({"platform":"macos","volumes":volumes,
         "message":"Drobo-mounted volumes only. OS filesystem usage and protected-pool allocation are separate accounting measures."}))
@@ -386,6 +445,49 @@ pub fn open_sharing_settings() -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "macos")]
+    fn c_text<const N: usize>(value: &str) -> [c_char; N] {
+        assert!(value.len() < N);
+        let mut output = [0; N];
+        for (index, byte) in value.bytes().enumerate() {
+            output[index] = byte as c_char;
+        }
+        output
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn volume_serialization_keeps_lun_and_enclosure_identity_separate() {
+        let volume = NativeVolume {
+            registry_id: 4_294_969_256,
+            physical_registry_group: 71,
+            total_bytes: 0,
+            used_bytes: 0,
+            available_bytes: 0,
+            read_only: 1,
+            statistics_available: 0,
+            id: c_text("volume-a"),
+            name: c_text("Starage"),
+            device_name: c_text("Drobo 5D - TB"),
+            filesystem: c_text("hfs"),
+            mount_path: c_text("/Volumes/Starage"),
+        };
+        let serialized = volume_json(&volume, Some("aWNvbg==".into()));
+        assert_eq!(serialized["deviceId"], "4294969256");
+        assert_eq!(serialized["enclosureId"], "71");
+        assert_eq!(serialized["deviceName"], "Drobo 5D - TB");
+        assert_eq!(serialized["iconPngBase64"], "aWNvbg==");
+        assert!(serialized["totalBytes"].is_null());
+        assert_eq!(serialized["readOnly"], true);
+
+        let unknown_group = NativeVolume {
+            physical_registry_group: 0,
+            ..volume
+        };
+        assert!(volume_json(&unknown_group, None)["enclosureId"].is_null());
+    }
+
     #[test]
     fn sharing_parser_keeps_export_and_folder_permissions_separate() {
         let text = "List of Share Points\nname:\tMedia\npath:\t/Volumes/Test/Media\nsmb: {\n\tname: Media\n\tshared: 1\n\tguest access: 0\n\tread-only: 1\n}\nname: Disabled\npath: /Volumes/Test/Private\nsmb: {\nshared: 0\n}\n";

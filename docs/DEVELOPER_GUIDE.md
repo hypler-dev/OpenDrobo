@@ -32,6 +32,8 @@ The command boundary is fixed: GUI controls call typed allowlisted operations; M
 
 Current macOS service observer connects only to original local management service on loopback port 4502. It uses bounded subscription frames and strict XML validation. It groups service updates into protected pool with logical volumes and separate physical slots. Internal service identifiers are correlation data only and never returned as serials or credentials.
 
+Volume icons are read at runtime through [NSWorkspace iconForFile](https://developer.apple.com/documentation/appkit/nsworkspace/icon(forfile:)) and encoded as bounded 48-pixel PNGs; no Apple icon files are distributed.
+
 Volume and sharing adapters apply Drobo binding before returning records. Volume records are limited to verified Drobo-mounted paths. SMB exports are listed only when their configured paths fall under those Drobo mount roots with component boundaries; this lexical classification does not resolve symlink targets and grants no file access; SMB/NFS service status describes the host service. Native accounts, permissions, and ACLs remain OS-owned and are not modified. Non-Drobo volumes and unrelated share points are intentionally omitted.
 
 ## Build and test
@@ -44,7 +46,7 @@ make check
 make build
 ```
 
-`make check` currently runs 22 lanes: Rust tests, frontend type/build checks, desktop policy tests, nine exact-capacity statistics tests, six Status-selection and identity-label tests, four drive-indicator decoder tests, native transport sanitizer checks, DriverKit policy checks, and direct FSKit checks. These tests do not activate a driver, mount a filesystem, or send commands to a Drobo.
+`make check` currently runs 24 lanes: Rust tests, frontend type/build checks, desktop policy tests, nine exact-capacity statistics tests, six Status-selection and identity-label tests, six drive-indicator decoder/presentation tests, five usage/volume-grouping tests, native icon rendering/binding-bound checks, native transport sanitizer checks, DriverKit policy checks, and direct FSKit checks. These tests do not activate a driver, mount a filesystem, or send commands to a Drobo.
 
 The default app target is macOS 14. The optional FSKit module and its direct checks require macOS 26 SDK/runtime support; it remains inactive. Build and test the app14 path separately from the FSKit research path.
 
@@ -113,3 +115,7 @@ If raw per-volume capture reports `kIOReturnExclusiveAccess`, the original `DDSe
 ## Release and contribution
 
 Release checks point to `hypler-dev/OpenDrobo` and are manual. App does not auto-download, install, or replace itself. Source changes should include focused tests, `git diff --check`, updated capability documentation, and clear statement of hardware actions not performed. Keep product documentation user-facing; keep build receipts and private observations in ignored artifacts.
+
+## Spare-unit research preparation
+
+Use the [spare-unit lab scaffold](SPARE_UNIT_LAB.md) to prepare private hardware manifests, protected unit/member exclusions, copied baseline receipts and an ordered test plan before disposable hardware arrives. The tool generates plans only and has no hardware execution path. Native format/reset and BeyondRAID recovery remain unimplemented.

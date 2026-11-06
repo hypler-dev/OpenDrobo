@@ -2,7 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { analyzeCapacity, type CapacityObservation, type CapacityStatistics, type StatisticsRange } from "./statistics";
 import { resolveStatusSelection, statusUnitLabel } from "./status_selection";
-import { driveIndicator } from "./drive_indicator";
+import { driveIndicator, DRIVE_INDICATOR_MEANINGS, fiveDBayIndicators } from "./drive_indicator";
+import { deviceLabel, groupDroboVolumes, usageAccounting, installedCapacity } from "./storage_presentation";
 import "./styles.css";
 
 type Section = "all" | "status" | "capacity" | "volumes" | "events" | "statistics" | "console" | "sharing" | "mcp" | "management" | "tools" | "settings" | "preferences" | "help";
@@ -62,6 +63,9 @@ interface StorageVolume {
   availableBytes: string | null;
   deviceId: string | null;
   provider: "drobo" | "host";
+  enclosureId?: string | null;
+  deviceName?: string | null;
+  iconPngBase64?: string | null;
   accounting: "os-logical";
   readOnly: boolean;
 }
@@ -408,7 +412,7 @@ function header(): HTMLElement {
   const brand = element("div", "brand");
   brand.append(textElement("strong", "OpenDrobo"), textElement("span", "DEVELOPMENT PREVIEW"));
   const selectedPool = currentPool();
-  const title = textElement("h1", selectedPool ? displayDeviceLabel(selectedPool.brand, selectedPool.model) : "Drobo Dashboard");
+  const title = textElement("h1", selectedPool ? deviceLabel(selectedPool.brand, selectedPool.model, selectedPool.connectionType) : "Drobo Dashboard");
   const metadata = textElement("div", appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "development local dashboard", "top-meta");
   headerElement.append(brand, title, metadata);
   return headerElement;
@@ -547,7 +551,7 @@ function footerInfo(): HTMLElement {
   const footer = element("div", "sidebar-footer");
   const pool = currentPool();
   const observed = poolStatus ? new Date(poolStatus.observedAtMs).toLocaleTimeString() : "not reported";
-  footer.append(textElement("strong", pool ? displayDeviceLabel(pool.brand, pool.model) : poolStatus?.pools.length ? "Select a Drobo" : inventory?.devices.length ? "Device information pending" : "No Drobo detected"), textElement("span", `Last updated: ${observed}`));
+  footer.append(textElement("strong", pool ? deviceLabel(pool.brand, pool.model, pool.connectionType) : poolStatus?.pools.length ? "Select a Drobo" : inventory?.devices.length ? "Device information pending" : "No Drobo detected"), textElement("span", `Last updated: ${observed}`));
   return footer;
 }
 
@@ -686,7 +690,7 @@ function statusDevicePicker(pools: PoolStatus[]): HTMLElement {
     button.type = "button";
     button.id = `status-device-${encodeURIComponent(pool.id)}`;
     button.setAttribute("aria-pressed", String(selectedPoolId === pool.id));
-    const label = displayDeviceLabel(pool.brand, pool.model);
+    const label = deviceLabel(pool.brand, pool.model, pool.connectionType);
     const identity = statusUnitLabel(pool.id, pools.map((candidate) => candidate.id));
     button.setAttribute("aria-label", `${label}, ${identity}`);
     button.append(unitPortrait(pool, !poolIsStale()), textElement("strong", label), textElement("small", identity));
@@ -718,7 +722,7 @@ function poolSelector(id: string): HTMLLabelElement {
   placeholder.selected = selectedPoolId === null;
   select.append(placeholder);
   for (const pool of poolStatus?.pools ?? []) {
-    const option = new Option(displayDeviceLabel(pool.brand, pool.model), pool.id);
+    const option = new Option(deviceLabel(pool.brand, pool.model, pool.connectionType), pool.id);
     option.selected = pool.id === selectedPoolId;
     select.append(option);
   }
@@ -735,16 +739,25 @@ function poolSelector(id: string): HTMLLabelElement {
   return label;
 }
 
-function displayDeviceLabel(brand: string, model: string): string {
-  const cleanBrand = brand.trim(); const cleanModel = model.trim();
-  return cleanBrand && cleanModel.toLocaleLowerCase().startsWith(cleanBrand.toLocaleLowerCase()) ? cleanModel : [cleanBrand, cleanModel].filter(Boolean).join(" ") || "Drobo";
+function controlDeviceLabel(target: ControlTarget): string {
+  const pool = poolStatus?.pools.find((candidate) => candidate.id === target.id);
+  return deviceLabel(target.brand, target.model, pool?.connectionType);
 }
 
 function poolDeviceCard(pool: PoolStatus): HTMLElement {
   const card = element("article", "device-card glass");
   card.classList.toggle("device-selected", selectedPoolId === pool.id);
-  card.append(unitPortrait(pool, !poolIsStale()), textElement("h2", displayDeviceLabel(pool.brand, pool.model)));
+  card.append(unitPortrait(pool, !poolIsStale()), textElement("h2", deviceLabel(pool.brand, pool.model, pool.connectionType)));
   card.append(textElement("p", `Capacity ${formatDecimalBytes(pool.protectedUsedBytes)} used of ${formatDecimalBytes(pool.protectedTotalBytes)}. ${poolIsStale() ? "Snapshot stale." : "Snapshot current."}`, "status-copy"));
+  if (isFiveD(pool)) {
+    const indicators = fiveDBayIndicators(pool.slots, !poolIsStale());
+    const issues = indicators.filter(({ indicator }) => indicator.kind !== "green");
+    const summary = element("p", "unit-bay-summary");
+    summary.textContent = issues.length ? issues.map(({ slot, indicator }) => `Drive ${slot + 1}: ${indicator.summary}`).join(" · ") : "All 5 drive bays report ready";
+    summary.title = issues.map(({ slot, indicator }) => `Drive ${slot + 1}: ${indicator.label}`).join(" ");
+    card.append(summary);
+  }
+
   const select = actionButton("Open status", "secondary", () => { if (selectedPoolId !== pool.id) clearPendingControl("Pool changed; pending control confirmation was cancelled."); selectedPoolId = pool.id; selectedControlTargetId = pool.id; selectedBaySlot = null; selectedSection = "status"; requestGeneration += 1; render(); });
   select.id = `pool-${encodeURIComponent(pool.id)}`;
   card.append(select);
@@ -856,8 +869,9 @@ function enclosureArtwork(pool: PoolStatus, fresh: boolean): HTMLElement {
   stage.append(bays);
   const legend = element("div", "drive-led-legend");
   legend.setAttribute("aria-label", "Drive indicator colors");
-  for (const [kind, label] of [["green", "Green"], ["amber", "Amber"], ["red", "Red"], ["protecting", "Green / amber"], ["red-flash", "Flashing red"], ["unknown", "Unknown"]]) {
-    const item = textElement("span", label); item.dataset.led = kind; legend.append(item);
+  for (const kind of ["green", "amber", "red", "protecting", "red-flash", "unknown"] as const) {
+    const meaning = DRIVE_INDICATOR_MEANINGS[kind];
+    const item = textElement("span", meaning.summary); item.title = meaning.label; item.dataset.led = kind; legend.append(item);
   }
   wrap.append(stage, cacheButton, textElement("p", "Select a drive to view its details.", "status-copy"), legend);
   return wrap;
@@ -1067,7 +1081,7 @@ function controlStatusPanel(): HTMLElement {
     panel.append(stateCard("Selected device unavailable", "Refresh device information before using controls for this Drobo.", "quiet"));
     return panel;
   }
-  panel.append(textElement("p", `${displayDeviceLabel(target.brand, target.model)} · Experimental controls. Power operations require all Drobo volumes to be ejected.`, "status-copy"));
+  panel.append(textElement("p", `${controlDeviceLabel(target)} · Experimental controls. Power operations require all Drobo volumes to be ejected.`, "status-copy"));
   const controls = element("div", "control-grid");
   const order: ControlAction[] = ["identify", "shutdown", "standby", "restart", "get-brightness", "brightness"];
   const deviceControls = target.controls.filter((control) => control.action !== "brightness" && control.action !== "get-brightness");
@@ -1105,7 +1119,7 @@ function controlTargetSelect(targets: ControlTarget[]): HTMLElement {
   for (const target of targets) {
     const option = document.createElement("option");
     option.value = target.id;
-    option.textContent = `${displayDeviceLabel(target.brand, target.model)} · ${target.id.slice(-6)}`;
+    option.textContent = `${controlDeviceLabel(target)} · ${target.id.slice(-6)}`;
     option.selected = target.id === selectedControlTargetId && target.id === selectedPoolId;
     select.append(option);
   }
@@ -1185,7 +1199,7 @@ function controlConfirmationDialog(target: ControlTarget, control: DeviceControl
   const required = control.action.toUpperCase();
   const heading = textElement("h3", `Confirm ${control.label}`);
   heading.id = "control-confirmation-heading";
-  dialog.append(heading, textElement("p", `This can disrupt access. Eject all volumes before continuing. Type ${required} to submit ${control.label} for ${displayDeviceLabel(target.brand, target.model)}.`, "status-copy"));
+  dialog.append(heading, textElement("p", `This can disrupt access. Eject all volumes before continuing. Type ${required} to submit ${control.label} for ${controlDeviceLabel(target)}.`, "status-copy"));
   if (controlBusyAction === control.action) {
     const busy = textElement("p", `${control.label} request in progress. Awaiting the local control result.`, "control-busy-status");
     busy.id = "control-confirmation-status";
@@ -1237,7 +1251,7 @@ function controlResultCard(result: ControlResult): HTMLElement {
     card.append(textElement("p", valueLabel, "status-copy"));
   }
   const target = controlStatus?.targets.find((candidate) => candidate.id === controlResultTargetId);
-  if (target) card.append(textElement("p", `Target: ${displayDeviceLabel(target.brand, target.model)}.`, "status-copy"));
+  if (target) card.append(textElement("p", `Target: ${controlDeviceLabel(target)}.`, "status-copy"));
   return card;
 }
 
@@ -1269,21 +1283,23 @@ function deviceArtwork(pool: PoolStatus, fresh: boolean): SVGSVGElement {
   svg.setAttribute("class", "device-artwork");
   svg.setAttribute("viewBox", "0 0 220 280");
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", `${pool.model || "Drobo"} illustration. Cyan indicates observed presence, not drive health.`);
+  svg.setAttribute("aria-label", `${pool.model || "Drobo"} enclosure. Bay lights follow the reported slot indicators.`);
   const shape = (name: "rect" | "circle", attributes: Record<string, string>) => {
     const node = document.createElementNS("http://www.w3.org/2000/svg", name);
     for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
     svg.append(node);
+    return node;
   };
   shape("rect", { x: "22", y: "8", width: "176", height: "242", rx: "18", class: "tower-body" });
   shape("rect", { x: "32", y: "20", width: "156", height: "192", rx: "12", class: "tower-bezel" });
   if (isFiveD(pool)) {
     for (let index = 0; index < 5; index += 1) {
       const slot = pool.slots.find((candidate) => candidate.slot === index);
-      const active = fresh && slot?.driveState === "active";
+      const indicator = driveIndicator(slot?.rawStatus.mStatus, fresh);
       shape("rect", { x: "42", y: String(31 + index * 34), width: "124", height: "25", rx: "4", class: "tower-bay" });
       shape("rect", { x: "47", y: String(40 + index * 34), width: "17", height: "6", rx: "2", class: "tower-latch" });
-      shape("circle", { cx: "177", cy: String(44 + index * 34), r: "3", class: active ? "tower-light active" : "tower-light" });
+      const light = shape("circle", { cx: "177", cy: String(44 + index * 34), r: "3", class: "tower-light bay-indicator" });
+      light.dataset.led = indicator.kind;
     }
   } else {
     const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -1307,9 +1323,20 @@ function unitPortrait(pool: PoolStatus, fresh: boolean): HTMLElement {
     image.src = "/local-artwork/Drobo5DFront.png";
     image.alt = "Drobo 5D enclosure";
     image.hidden = true;
-    image.addEventListener("load", () => { fallback.style.display = "none"; image.hidden = false; }, { once: true });
+    image.addEventListener("load", () => { fallback.style.display = "none"; image.hidden = false; portrait.classList.add("has-unit-art"); }, { once: true });
     image.addEventListener("error", () => image.remove(), { once: true });
-    portrait.append(image);
+    const lights = element("div", "portrait-leds");
+    const descriptions: string[] = [];
+    for (let index = 0; index < 5; index += 1) {
+      const slot = pool.slots.find((candidate) => candidate.slot === index);
+      const indicator = driveIndicator(slot?.rawStatus.mStatus, fresh);
+      const light = element("span", "portrait-bay-led"); light.dataset.led = indicator.kind;
+      light.title = `Drive ${index + 1}: ${indicator.label}`; descriptions.push(light.title);
+      lights.append(light);
+    }
+    portrait.setAttribute("role", "img"); portrait.setAttribute("aria-label", `${deviceLabel(pool.brand, pool.model, pool.connectionType)}. ${descriptions.join(" ")}`);
+    image.alt = ""; fallback.setAttribute("aria-hidden", "true"); lights.setAttribute("aria-hidden", "true");
+    portrait.append(image, lights);
   }
   return portrait;
 }
@@ -1581,7 +1608,7 @@ function poolSlotTable(pool: PoolStatus): HTMLElement {
 }
 
 function volumesPanel(content: HTMLElement): HTMLElement {
-  const intro = panelIntro("Volumes", "Drobo volumes only. Used space is the operating-system filesystem reading, separate from protected pool capacity.");
+  const intro = panelIntro("Volumes", "Mounted filesystems grouped by their physical Drobo. Used space comes from macOS.");
   const refresh = actionButton(storageLoading ? "Refreshing…" : "Refresh volumes", "primary", () => void loadStorageStatus());
   refresh.disabled = storageLoading;
   const actions = element("div", "panel-actions");
@@ -1599,24 +1626,32 @@ function volumesPanel(content: HTMLElement): HTMLElement {
   } else if (storageStatus.volumes.filter((volume) => volume.provider === "drobo").length === 0) {
     content.append(stateCard("No Drobo volumes reported", storageStatus.message || "No mounted Drobo volumes were returned by the local service.", "quiet"));
   } else {
-    const volumes = storageStatus.volumes.filter((volume) => volume.provider === "drobo");
-    const card = element("section", "storage-table-wrap glass");
-    const table = element("table", "storage-table");
-    const caption = textElement("caption", "Drobo volumes");
-    table.append(caption, tableHeader(["Name", "Filesystem used"]));
-    const body = document.createElement("tbody");
-    for (const volume of volumes) {
-      const row = document.createElement("tr");
-      appendTableCell(row, volume.name || volume.id, "volume-name");
-      appendTableCell(row, formatNullableBytes(volume.usedBytes));
-      body.append(row);
+    const groups = groupDroboVolumes(storageStatus.volumes);
+    for (const group of groups) {
+      const card = element("section", "volume-group glass");
+      const heading = element("div", "volume-group-heading");
+      heading.append(textElement("h3", group.name), textElement("span", `${group.volumes.length} mounted ${group.volumes.length === 1 ? "volume" : "volumes"}`, "status-copy"));
+      card.append(heading);
+      const list = element("ul", "volume-list");
+      for (const volume of [...group.volumes].sort((a, b) => a.name.localeCompare(b.name))) {
+        const row = element("li", "volume-row");
+        const icon = document.createElement("img");
+        icon.className = "volume-icon"; icon.alt = ""; icon.width = 48; icon.height = 48;
+        const png = volume.iconPngBase64;
+        if (png && png.length <= 16384 && /^[A-Za-z0-9+/]+={0,2}$/.test(png)) icon.src = `data:image/png;base64,${png}`;
+        else { icon.hidden = true; const fallback = textElement("span", "▣", "volume-icon-fallback"); fallback.setAttribute("aria-hidden", "true"); row.append(fallback); }
+        const identity = element("div", "volume-identity");
+        identity.append(textElement("strong", volume.name || "Unnamed volume"), textElement("span", `${volume.filesystem === "hfs" ? "Mac OS Extended (HFS+)" : volume.filesystem || "Unknown filesystem"} · ${volume.readOnly ? "Read-only" : "Read/write"}`, "volume-meta"), textElement("span", volume.mountPath ?? "Not mounted", "volume-path"));
+        const used = element("div", "volume-space");
+        used.append(textElement("strong", volume.usedBytes === null ? "Not reported" : formatDecimalBytes(volume.usedBytes)), textElement("span", "Filesystem used", "volume-meta"));
+        row.append(icon, identity, used); list.append(row);
+      }
+      const advanced = document.createElement("details"); advanced.className = "advanced-details";
+      const technical = element("div", "volume-technical-scroll"); technical.tabIndex = 0; technical.setAttribute("role", "region"); technical.setAttribute("aria-label", `${group.name} logical volume details`); technical.append(droboVolumeTechnicalTable(group.volumes));
+      advanced.append(textElement("summary", "Logical capacity and volume details"), textElement("p", "Logical filesystem totals and available space can reflect thin provisioning. They are not the disk pack’s physical usable or free capacity.", "status-copy"), technical);
+      card.append(list, textElement("p", group.bound ? "These volumes share this enclosure’s BeyondRAID disk pack. Files are distributed across the pack; volumes are not assigned to individual drive bays." : "Drobo volume verified. Its physical enclosure grouping is unavailable; no shared-pack relationship is assumed.", "status-copy"), advanced);
+      content.append(card);
     }
-    table.append(body);
-    const advanced = document.createElement("details");
-    advanced.className = "advanced-details";
-    advanced.append(textElement("summary", "Advanced volume details"), droboVolumeTechnicalTable(volumes));
-    card.append(table, textElement("p", storageStatus.message, "status-copy"), advanced);
-    content.append(card);
   }
   content.append(textElement("p", "This view never mounts, formats, repairs, or changes a volume.", "scope-note"));
   return content;
@@ -1624,10 +1659,11 @@ function volumesPanel(content: HTMLElement): HTMLElement {
 
 function droboVolumeTechnicalTable(volumes: StorageVolume[]): HTMLElement {
   const table = element("table", "storage-table");
-  table.append(tableHeader(["Filesystem", "Mount path", "Logical total", "Available", "Access"]));
+  table.append(tableHeader(["Volume", "Filesystem", "Mount path", "Logical total", "Available", "Access"]));
   const body = document.createElement("tbody");
   for (const volume of volumes) {
     const row = document.createElement("tr");
+    appendTableCell(row, volume.name || "Unnamed volume");
     appendTableCell(row, volume.filesystem || "Unknown");
     appendTableCell(row, volume.mountPath ?? "Not mounted", "path-cell");
     appendTableCell(row, formatNullableBytes(volume.totalBytes));
@@ -1949,14 +1985,24 @@ function capacityPanel(content: HTMLElement): HTMLElement {
 
 function capacityWorkspace(pool: PoolStatus, stale: boolean): HTMLElement {
   const workspace = element("section", `capacity-workspace glass${stale ? " stale-values" : ""}`);
-  const installed = dataSlots(pool).reduce((sum, slot) => sum + safeBytes(slot.physicalCapacityBytes), 0n).toString();
+  const installed = installedCapacity(dataSlots(pool).map((slot) => slot.physicalCapacityBytes));
   if (capacityMode === "usage") {
-    const usage = element("div", "capacity-right");
-    usage.append(textElement("h3", stale ? "Last reported installed physical drive capacity" : "Installed physical drive capacity"), textElement("strong", formatDecimalBytes(installed), "usage-total"), textElement("p", "Installed capacity is separate from protected pool capacity. Used/free/protection breakdown: Unavailable.", "status-copy"));
-    const cache = element("section", "cache-summary");
+    const usage = element("div", "capacity-right usage-breakdown");
+    usage.append(textElement("h3", stale ? "Last reported space usage" : "Space usage"));
+    const accounting = usageAccounting(pool.protectedTotalBytes, pool.protectedUsedBytes, pool.protectedFreeBytes);
+    if (accounting) {
+      const metrics = element("dl", "usage-metrics");
+      appendDefinition(metrics, "Used in protected pool", formatDecimalBytes(accounting.used));
+      appendDefinition(metrics, "Available in protected pool", formatDecimalBytes(accounting.free));
+      appendDefinition(metrics, "Total usable capacity", formatDecimalBytes(accounting.total));
+      usage.append(metrics, capacityDonutValues("Protected pool space usage", accounting.total, accounting.used, accounting.free));
+    } else usage.append(textElement("p", "Protected usage is unavailable: the reported accounting is inconsistent.", "status-copy"));
+    usage.append(textElement("p", `OS filesystem used: ${formatDecimalBytes(pool.osUsedBytes)}. Filesystem usage and pool allocation are measured separately.`, "status-copy"));
+    const hardware = element("section", "cache-summary");
+    hardware.append(textElement("h3", "Installed drives", "card-heading"), textElement("p", installed ? `${formatDecimalBytes(installed.bytes)} raw capacity across ${installed.populated} data drives. This is not usable space.` : "Installed drive capacity is unavailable or incomplete.", "status-copy"));
     const ssd = cacheSlot(pool);
-    cache.append(textElement("h3", "SSD cache", "card-heading"), textElement("p", ssd ? `Capacity: ${formatPhysicalCapacity(ssd.physicalCapacityBytes)}. Life: ${ssd.ssdLifeRemainingPercent === null ? "Not reported" : `${ssd.ssdLifeRemainingPercent}% remaining`}. Usage: Unavailable.` : "No SSD cache reported. Usage: Unavailable.", "status-copy"));
-    workspace.append(usage, cache); return workspace;
+    hardware.append(textElement("h3", "SSD cache", "card-heading"), textElement("p", ssd ? `${formatPhysicalCapacity(ssd.physicalCapacityBytes)} · ${ssd.ssdLifeRemainingPercent === null ? "Life not reported" : `${ssd.ssdLifeRemainingPercent}% life remaining`}. Cache occupancy is not reported.` : "No SSD cache reported.", "status-copy"));
+    workspace.append(usage, hardware); return workspace;
   }
   const total = pool.protectedTotalBytes;
   const used = pool.protectedUsedBytes;
