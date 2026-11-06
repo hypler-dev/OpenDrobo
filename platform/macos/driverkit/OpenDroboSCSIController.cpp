@@ -1,4 +1,5 @@
 #include <new>
+#include <atomic>
 #include <initializer_list>
 #include "OpenDroboSCSIController.h"
 #include "DriverKitSession.h"
@@ -6,6 +7,7 @@
 #include "ScsiResponses.h"
 #include "ScsiTaskTable.h"
 #include "ScsiDrain.h"
+#include "AsyncSourceClose.h"
 #include <DriverKit/DriverKit.h>
 #include <DriverKit/IOBufferMemoryDescriptor.h>
 #include <DriverKit/IODispatchQueue.h>
@@ -42,6 +44,8 @@ struct OpenDroboSCSIController_IVars {
     bool target_present = false, target_destroying = false, power_pending = false;
     bool startup_failed = false, auxiliary_closing = false, auxiliary_closed = false;
     bool sources_closing = false;
+    std::atomic<kern_return_t> source_close_error{kIOReturnSuccess};
+    ODAsyncCloseState timer_close, auxiliary_close;
 };
 struct ServicePin {
     OpenDroboSCSIController *service;
@@ -139,6 +143,7 @@ static void finish_engine(OpenDroboSCSIController *self, ODTBTController &engine
 static void session_closed(OpenDroboSCSIController *self) {
     ServicePin pin(self);
     self->ivars->sources_closed = true;
+    self->ivars->source_close_error = kIOReturnSuccess;
     if (self->ivars->interrupt_action) {
         self->ivars->interrupt_action->release(); self->ivars->interrupt_action = nullptr;
     }
@@ -151,15 +156,22 @@ static void session_closed(OpenDroboSCSIController *self) {
     }
     maybe_finish_stop(self);
 }
+static void source_close_failed(OpenDroboSCSIController *self, kern_return_t error) {
+    self->ivars->source_close_error = error;
+    self->ivars->sources_closing = false;
+    // Keep the source, owner, queue and stop pin alive. A later Stop retries.
+    IOLog("OpenDrobo: source close failed (0x%x); resources retained for explicit Stop retry\n", (unsigned)error);
+}
 static void close_session(OpenDroboSCSIController *self) {
     auto state = self->ivars->session.GetState();
     if (state == ODTBTDriverKitSession::State::Empty || state == ODTBTDriverKitSession::State::Closed) {
         session_closed(self); return;
     }
-    (void)self->ivars->session.BeginClose(^(kern_return_t result) {
-        if (result == kIOReturnSuccess) session_closed(self);
-        // Failed cancellation retains the source, owner, queue and stop pin.
+    auto begin_result = self->ivars->session.BeginClose(^(kern_return_t close_result) {
+        if (close_result == kIOReturnSuccess) session_closed(self);
+        else source_close_failed(self, close_result);
     });
+    if (begin_result != kIOReturnSuccess) source_close_failed(self, begin_result);
 }
 static void close_sources(OpenDroboSCSIController *self) {
     auto v = self->ivars;
@@ -174,12 +186,10 @@ static void close_sources(OpenDroboSCSIController *self) {
         (void)od_tbt_controller_begin_stop(&v->management, 0);
     }
     if (!v->timer) { close_session(self); return; }
-    (void)v->timer->SetEnableWithCompletion(false, ^{
-        (void)v->timer->Cancel(^{
-            v->timer->release(); v->timer = nullptr;
-            close_session(self);
-        });
-    });
+    (void)od_async_source_close(v->timer, &v->timer_close, ^{
+        v->timer->release(); v->timer = nullptr;
+        close_session(self);
+    }, ^(int32_t error) { source_close_failed(self, error); });
 }
 static void begin_shutdown(OpenDroboSCSIController *self) {
     (void)od_scsi_drain_fail(&self->ivars->drain, OD_SCSI_DRAIN_FAILURE_PROTOCOL);
@@ -199,6 +209,11 @@ static void advance_drain(OpenDroboSCSIController *self) {
 }
 static void request_graceful_stop(OpenDroboSCSIController *self) {
     auto v = self->ivars;
+    if (v->sources_closed) {
+        maybe_finish_stop(self);
+        return;
+    }
+    if (v->source_close_error != kIOReturnSuccess) { close_sources(self); return; }
     if (v->sources_closing) { maybe_finish_stop(self); return; }
     uint64_t now = uptime_ms();
     if (!now || now > UINT64_MAX - 30000) { begin_shutdown(self); return; }
@@ -227,13 +242,16 @@ static void maybe_finish_stop(OpenDroboSCSIController *self) {
     if (v->auxiliary && !v->auxiliary_closed) {
         if (!v->auxiliary_closing) {
             v->auxiliary_closing = true;
-            auto result = v->auxiliary->Cancel(^{
+            (void)od_async_source_cancel(v->auxiliary, &v->auxiliary_close, ^{
                 v->queue->DispatchAsync(^{
-                    v->auxiliary_closed = true;
+                    v->auxiliary_closed = true; v->auxiliary_closing = false;
+                    v->source_close_error = kIOReturnSuccess;
                     maybe_finish_stop(self);
                 });
+            }, ^(int32_t error) {
+                v->auxiliary_closing = false;
+                source_close_failed(self, error);
             });
-            if (result != kIOReturnSuccess) v->auxiliary_closing = false;
         }
         return;
     }
@@ -332,13 +350,8 @@ kern_return_t IMPL(OpenDroboSCSIController, UserInitializeController) {
         (result = IOTimerDispatchSource::Create(ivars->queue, &ivars->timer)) != kIOReturnSuccess ||
         (result = ivars->timer->SetHandler(ivars->timer_action)) != kIOReturnSuccess ||
         (result = ivars->timer->SetEnableWithCompletion(true, nullptr)) != kIOReturnSuccess) return fail(result);
-    memcpy(ivars->identity.vendor, "OpenDrobo", 8);
-    memcpy(ivars->identity.product, "Read-only bridge", 16);
-    memcpy(ivars->identity.revision, "0001", 4);
-    uint64_t registry_id = 0;
-    if ((result = ivars->provider->GetRegistryEntryID(&registry_id)) != kIOReturnSuccess) return fail(result);
-    char serial[17]; snprintf(serial, sizeof(serial), "%016llx", (unsigned long long)registry_id);
-    memcpy(ivars->identity.serial, serial, 16); ivars->identity.serial_length = 16;
+    // No verified bridge serial is available. Do not expose a registry ID as one.
+    od_scsi_bridge_identity(&ivars->identity);
     ivars->initialized = true;
     return kIOReturnSuccess;
 }
@@ -384,7 +397,7 @@ kern_return_t IMPL(OpenDroboSCSIController, Stop) {
     if (!provider) return kIOReturnBadArgument;
     if (!ivars->stop_provider) { ivars->stop_provider = provider; provider->retain(); }
     request_graceful_stop(this);
-    return kIOReturnSuccess;
+    return ivars->source_close_error.load();
 }
 kern_return_t IMPL(OpenDroboSCSIController, SetPowerState) {
     if (!od_scsi_service_hardware_enabled()) return kIOReturnUnsupported;

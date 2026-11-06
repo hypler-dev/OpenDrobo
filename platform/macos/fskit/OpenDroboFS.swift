@@ -91,6 +91,10 @@ final class OpenDroboVolume: FSVolume, FSVolume.Operations, FSVolume.OpenCloseOp
             try rootNode.verifyRootPath(rootPath)
             switch protectedCapacity {
             case .success(let capacity):
+                guard capacity.total % 4096 == 0, capacity.used % 4096 == 0, capacity.free % 4096 == 0 else {
+                    fsLog.error("protected capacity unavailable: byte counts do not match verified block geometry")
+                    return result
+                }
                 result.totalBytes = capacity.total; result.availableBytes = capacity.free; result.freeBytes = capacity.free; result.usedBytes = capacity.used
                 result.totalBlocks = capacity.total / 4096; result.availableBlocks = capacity.free / 4096; result.freeBlocks = capacity.free / 4096; result.usedBlocks = capacity.used / 4096
             case .failure(let error): fsLog.error("protected capacity unavailable: \(String(describing: error), privacy: .public)")

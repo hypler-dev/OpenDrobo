@@ -28,9 +28,17 @@ static void write_be64(uint8_t *bytes, uint64_t value) {
     write_be32(bytes + 4, (uint32_t)value);
 }
 
+void od_scsi_bridge_identity(ODScsiIdentity *identity) {
+    if (!identity) return;
+    memset(identity, 0, sizeof(*identity));
+    memcpy(identity->vendor, "OpenDrobo", 8);
+    memcpy(identity->product, "Read-only bridge", 16);
+    memcpy(identity->revision, "0001", 4);
+}
+
 static int serial_is_printable_ascii(const ODScsiIdentity *identity) {
     uint8_t i;
-    if (identity->serial_length == 0 || identity->serial_length > sizeof(identity->serial))
+    if (identity->serial_length > sizeof(identity->serial))
         return 0;
     for (i = 0; i < identity->serial_length; ++i) {
         if (identity->serial[i] < 0x20 || identity->serial[i] > 0x7e) return 0;
@@ -126,11 +134,12 @@ ODScsiResponseStatus od_scsi_write_inline_response(
                 memcpy(response + 16, identity.product, sizeof(identity.product));
                 memcpy(response + 32, identity.revision, sizeof(identity.revision));
             } else if (task.cdb[2] == 0x00) {
-                response_length = 6;
-                response[3] = 2;
+                response_length = identity.serial_length ? 6 : 5;
+                response[3] = identity.serial_length ? 2 : 1;
                 response[4] = 0x00;
-                response[5] = 0x80;
+                if (identity.serial_length) response[5] = 0x80;
             } else if (task.cdb[2] == 0x80) {
+                if (!identity.serial_length) return OD_SCSI_RESPONSE_UNSUPPORTED;
                 response_length = 4U + identity.serial_length;
                 response[1] = 0x80;
                 response[3] = identity.serial_length;

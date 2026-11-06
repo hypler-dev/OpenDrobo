@@ -8,6 +8,7 @@ export interface StatusSelection {
 export function resolveStatusSelection(poolIds: readonly string[], currentId: string | null, controlTargetId: string | null): StatusSelection {
   const poolId = currentId !== null && poolIds.includes(currentId) ? currentId : poolIds.length === 1 ? poolIds[0] : null;
   const changed = poolId !== currentId;
+  // Read-only selection may retain, but never create, an explicit Tools authority.
   return { poolId, changed, controlTargetId: !changed && controlTargetId === poolId ? controlTargetId : null };
 }
 

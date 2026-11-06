@@ -87,7 +87,7 @@ pub async fn check() -> UpdateResponse {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(12))
             .redirect(reqwest::redirect::Policy::none())
-            .user_agent("OpenDrobo/0.2.0")
+            .user_agent(format!("OpenDrobo/{}", env!("CARGO_PKG_VERSION")))
             .build()
             .map_err(|_| "Could not start release lookup".to_string())?;
         let mut response = client

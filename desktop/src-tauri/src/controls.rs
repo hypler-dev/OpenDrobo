@@ -249,6 +249,15 @@ fn exchange_at(
     bytes: &[u8],
     command: u8,
 ) -> Result<(u64, Option<String>), String> {
+    exchange_at_with_timeout(address, bytes, command, Duration::from_secs(8))
+}
+
+fn exchange_at_with_timeout(
+    address: std::net::SocketAddr,
+    bytes: &[u8],
+    command: u8,
+    timeout: Duration,
+) -> Result<(u64, Option<String>), String> {
     let mut stream = std::net::TcpStream::connect_timeout(&address, Duration::from_secs(1))
         .map_err(|_| "Command was not sent: the local service is unavailable.".to_string())?;
     stream
@@ -259,7 +268,7 @@ fn exchange_at(
         .map_err(|_| "Command was not sent: socket configuration failed.".to_string())?;
     let unknown = "Command outcome is unknown. Do not retry automatically; inspect the unit and refresh its status.";
     stream.write_all(bytes).map_err(|_| unknown.to_string())?;
-    let deadline = Instant::now() + Duration::from_secs(8);
+    let deadline = Instant::now() + timeout;
     let mut header = [0; 16];
     read_exact_deadline(&mut stream, &mut header, deadline).map_err(|_| unknown.to_string())?;
     if &header[..12] != b"DRIDDSVC\x06\x01\x00\x00" {
@@ -329,6 +338,7 @@ pub fn execute(request: Request) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::TcpListener;
     fn target() -> crate::service::ControlTarget {
         crate::service::ControlTarget {
             esa_id: "SYNTHETIC_UNIT".into(),
@@ -440,6 +450,99 @@ mod tests {
         assert_eq!(
             exchange_at(address, &bytes, 9).unwrap(),
             (0, Some("60".into()))
+        );
+        worker.join().unwrap();
+    }
+
+    fn read_one_write(mut stream: std::net::TcpStream, expected: &[u8]) {
+        let mut received = vec![0; expected.len()];
+        stream.read_exact(&mut received).unwrap();
+        assert_eq!(received, expected);
+    }
+
+    fn assert_no_retry(listener: &TcpListener, stream: &mut std::net::TcpStream) {
+        stream
+            .set_read_timeout(Some(Duration::from_millis(10)))
+            .unwrap();
+        let mut extra = [0_u8; 1];
+        match stream.read(&mut extra) {
+            Ok(0) => {}
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::TimedOut
+                        | std::io::ErrorKind::WouldBlock
+                        | std::io::ErrorKind::ConnectionReset
+                        | std::io::ErrorKind::ConnectionAborted
+                        | std::io::ErrorKind::NotConnected
+                ) => {}
+            Ok(_) => panic!("control transport wrote more than one request frame"),
+            Err(error) => panic!("control transport read check failed: {error}"),
+        }
+        listener.set_nonblocking(true).unwrap();
+        match listener.accept() {
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
+            Ok(_) => panic!("control transport opened a retry connection"),
+            Err(error) => panic!("control retry listener check failed: {error}"),
+        }
+    }
+
+    #[test]
+    fn partial_malformed_and_stalled_replies_are_unknown_after_one_write() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let bytes = encode(&request(Action::GetBrightness), &target()).unwrap();
+        let expected = bytes.clone();
+        let worker = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            read_one_write(stream.try_clone().unwrap(), &expected);
+            stream.write_all(b"DRID").unwrap();
+            std::thread::sleep(Duration::from_millis(40));
+            assert_no_retry(&listener, &mut stream);
+        });
+        let error =
+            exchange_at_with_timeout(address, &bytes, 9, Duration::from_millis(20)).unwrap_err();
+        assert_eq!(
+            error,
+            "Command outcome is unknown. Do not retry automatically; inspect the unit and refresh its status."
+        );
+        worker.join().unwrap();
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let bytes = encode(&request(Action::GetBrightness), &target()).unwrap();
+        let expected = bytes.clone();
+        let worker = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            read_one_write(stream.try_clone().unwrap(), &expected);
+            stream
+                .write_all(b"BADFRAME\x06\x01\x00\x00\x00\x00\x00\x02\0\0")
+                .unwrap();
+            assert_no_retry(&listener, &mut stream);
+        });
+        let error =
+            exchange_at_with_timeout(address, &bytes, 9, Duration::from_millis(20)).unwrap_err();
+        assert_eq!(
+            error,
+            "Command outcome is unknown. Do not retry automatically; inspect the unit and refresh its status."
+        );
+        worker.join().unwrap();
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let bytes = encode(&request(Action::GetBrightness), &target()).unwrap();
+        let expected = bytes.clone();
+        let worker = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            read_one_write(stream.try_clone().unwrap(), &expected);
+            std::thread::sleep(Duration::from_millis(40));
+            assert_no_retry(&listener, &mut stream);
+        });
+        let error =
+            exchange_at_with_timeout(address, &bytes, 9, Duration::from_millis(20)).unwrap_err();
+        assert_eq!(
+            error,
+            "Command outcome is unknown. Do not retry automatically; inspect the unit and refresh its status."
         );
         worker.join().unwrap();
     }

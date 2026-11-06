@@ -22,7 +22,7 @@ typedef struct {
 /*
  * This is bridge identity supplied by the project/provider registry. It is not
  * discovered hardware identity. Fixed-width fields are copied exactly; serial
- * is explicit printable ASCII and is never synthesized by this component.
+ * is optional explicit printable ASCII and is never synthesized by this component.
  */
 typedef struct {
     uint8_t vendor[8];
@@ -31,6 +31,9 @@ typedef struct {
     uint8_t serial[32];
     uint8_t serial_length;
 } ODScsiIdentity;
+
+/* Initialize public bridge identity without any serial or registry identifier. */
+void od_scsi_bridge_identity(ODScsiIdentity *identity);
 
 /*
  * Writes only bounded CPU-side response bytes. The task, geometry, and identity

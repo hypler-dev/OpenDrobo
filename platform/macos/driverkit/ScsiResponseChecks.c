@@ -173,6 +173,16 @@ int main(void) {
     expect_error(task_for(vpd80, sizeof(vpd80), 2, 36), geometry_value, identity_value,
                  OD_SCSI_RESPONSE_INVALID);
 
+    od_scsi_bridge_identity(&identity_value);
+    assert(identity_value.serial_length == 0);
+    for (size_t i = 0; i < sizeof(identity_value.serial); ++i) assert(identity_value.serial[i] == 0);
+    task = task_for(inquiry, sizeof(inquiry), 2, 36);
+    assert(od_scsi_write_inline_response(&task, &geometry_value, &identity_value, output, sizeof(output), &realized) == OD_SCSI_RESPONSE_HANDLED);
+    task = task_for(vpd00, sizeof(vpd00), 2, 6);
+    assert(od_scsi_write_inline_response(&task, &geometry_value, &identity_value, output, sizeof(output), &realized) == OD_SCSI_RESPONSE_HANDLED);
+    assert(realized == 5 && output[3] == 1 && output[4] == 0);
+    expect_error(task_for(vpd80, sizeof(vpd80), 2, 36), geometry_value, identity_value, OD_SCSI_RESPONSE_UNSUPPORTED);
+
     puts("PASS: bounded inline SCSI responses, exact CDB scope, geometry, and identity");
     return 0;
 }

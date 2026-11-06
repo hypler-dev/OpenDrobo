@@ -21,7 +21,10 @@ fn management_transaction<T>(operation: impl FnOnce() -> Result<T, String>) -> R
 }
 
 const MAX_XML_BYTES: usize = 524_288;
-const MAX_FRAMES: usize = 16;
+// One advertised unit list plus 32 complete unit updates needs 33 frames.
+// Leave bounded room for service update variants without weakening byte,
+// deadline, or advertised-unit caps.
+const MAX_FRAMES: usize = 64;
 const MAX_TOTAL_BYTES: usize = 2 * 1024 * 1024;
 const MAX_DEPTH: usize = 16;
 const MAX_NODES: usize = 4_096;
@@ -968,6 +971,70 @@ mod tests {
         let value = status_from_addr(address).unwrap();
         assert_eq!(value["state"], "available");
         assert_eq!(value["pools"][0]["volumes"].as_array().unwrap().len(), 2);
+        server.join().unwrap();
+    }
+
+    fn write_service_frame(stream: &mut std::net::TcpStream, kind: u8, body: &[u8]) {
+        let mut header = *b"DRIDDSVC\x07\x01\x00\x00\x00\x00\x00\x00";
+        header[10] = kind;
+        header[12..16].copy_from_slice(&(body.len() as u32).to_be_bytes());
+        stream.write_all(&header).unwrap();
+        stream.write_all(body).unwrap();
+    }
+
+    fn complete_unit_fixture(unit_count: usize) -> Value {
+        let listener = TcpListener::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let ids = (0..unit_count)
+            .map(|index| format!("SYNTHETIC-{index}"))
+            .collect::<Vec<_>>();
+        let advertised = format!(
+            "<ESATMDevices>{}</ESATMDevices>",
+            ids.iter()
+                .map(|id| format!("<mESAID>{id}</mESAID>"))
+                .collect::<String>()
+        );
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0u8; 16];
+            stream.read_exact(&mut request).unwrap();
+            assert_eq!(&request, b"DRIDDSVC\x01\x01\x00\x00\x00\x00\x00\x00");
+            write_service_frame(&mut stream, 4, advertised.as_bytes());
+            for id in ids {
+                write_service_frame(&mut stream, 1, update_xml(&id, &[(0, 100, 40)]).as_bytes());
+            }
+        });
+        let value = status_from_addr(address).unwrap();
+        server.join().unwrap();
+        value
+    }
+
+    #[test]
+    fn accepts_complete_synthetic_fixtures_for_15_16_and_32_units() {
+        for units in [15, 16, 32] {
+            let value = complete_unit_fixture(units);
+            assert_eq!(value["state"], "available");
+            assert_eq!(value["pools"].as_array().unwrap().len(), units);
+        }
+    }
+
+    #[test]
+    fn refuses_advertised_snapshot_over_unit_cap() {
+        let listener = TcpListener::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let advertised = format!(
+            "<ESATMDevices>{}</ESATMDevices>",
+            (0..33)
+                .map(|index| format!("<mESAID>SYNTHETIC-{index}</mESAID>"))
+                .collect::<String>()
+        );
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0u8; 16];
+            stream.read_exact(&mut request).unwrap();
+            write_service_frame(&mut stream, 4, advertised.as_bytes());
+        });
+        assert_eq!(status_from_addr(address).unwrap_err(), ERR_PROTOCOL);
         server.join().unwrap();
     }
 }

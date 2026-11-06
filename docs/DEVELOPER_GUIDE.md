@@ -38,7 +38,7 @@ Volume and sharing adapters apply Drobo binding before returning records. Volume
 
 ## Build and test
 
-Requirements: macOS 14+ for active app, Rust 1.98, Node 24+, npm, Python 3.11+, and Xcode tooling for native checks. Use repository-pinned environment helpers when available.
+Requirements: macOS 14+ for the desktop app, pinned Rust 1.98.0 and Node 24.22.1, npm and Python 3.11+. The validated host uses Xcode 26.3 (17C529). Native DriverKit/FSKit checks use the installed SDKs; see [release preparation](RELEASING.md). The workspace’s declared Rust 1.85 minimum is distinct from the tested build pin.
 
 ```sh
 npm --prefix desktop ci
@@ -48,7 +48,7 @@ make build
 
 `make check` currently runs 24 lanes: Rust tests, frontend type/build checks, desktop policy tests, nine exact-capacity statistics tests, six Status-selection and identity-label tests, six drive-indicator decoder/presentation tests, five usage/volume-grouping tests, native icon rendering/binding-bound checks, native transport sanitizer checks, DriverKit policy checks, and direct FSKit checks. These tests do not activate a driver, mount a filesystem, or send commands to a Drobo.
 
-The default app target is macOS 14. The optional FSKit module and its direct checks require macOS 26 SDK/runtime support; it remains inactive. Build and test the app14 path separately from the FSKit research path.
+The default optimized package targets macOS 14 on either architecture and excludes FSKit and extracted vendor artwork. Private builds may explicitly request `--local-artwork`; default public resources use generated fallbacks. The optional FSKit module and its direct checks require macOS 26 SDK/runtime support; it remains inactive. Build and test the app14 path separately from the FSKit research path.
 
 For an Intel macOS 14 preview without FSKit:
 
@@ -56,13 +56,13 @@ For an Intel macOS 14 preview without FSKit:
 python3 scripts/build_desktop.py --target x86_64-apple-darwin --without-fskit --output dist/home-intel
 ```
 
-For default Apple silicon package:
+For the default Apple-silicon package without research extensions:
 
 ```sh
 python3 scripts/build_desktop.py --output dist/arm64
 ```
 
-Packaged app is local preview. It is not notarized, installed as system driver, or published as binary release.
+The default package is a clearly labeled local candidate with ad-hoc signing. It is not a notarized distribution release. Developer ID and notarization gates, version parity, dependency inventory and artifact preflight are described in [release preparation](RELEASING.md).
 
 ## CLI and MCP
 

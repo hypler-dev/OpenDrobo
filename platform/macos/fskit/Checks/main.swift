@@ -85,6 +85,13 @@ struct OpenDroboFSChecks {
         let stats = volume.volumeStatistics
         precondition(stats.totalBytes == total && stats.availableBytes == free && stats.freeBytes == free && stats.usedBytes == used)
         precondition(stats.totalBlocks == total / 4096 && stats.availableBlocks == free / 4096 && stats.freeBlocks == free / 4096 && stats.usedBlocks == used / 4096)
+        for (unalignedFree, unalignedUsed) in [(free + 1, used), (free + 1, used - 1), (free, used + 1)] {
+            let unalignedPage = capacityPage(free: unalignedFree, used: unalignedUsed, total: unalignedFree + unalignedUsed, unprotected: unalignedFree + unalignedUsed + 4096)
+            let source = ProtectedCapacitySource(byteUnitsConfirmed: true, bind: { _ in .success(43) }, capture: { _ in .success((unalignedPage, Int64(Date().timeIntervalSince1970 * 1_000))) })
+            let unaligned = try OpenDroboVolume(rootPath: root.path, capacitySource: source).volumeStatistics
+            precondition(unaligned.totalBytes == 0 && unaligned.availableBytes == 0 && unaligned.freeBytes == 0 && unaligned.usedBytes == 0)
+            precondition(unaligned.totalBlocks == 0 && unaligned.availableBlocks == 0 && unaligned.freeBlocks == 0 && unaligned.usedBlocks == 0)
+        }
         let movedRoot = root.deletingLastPathComponent().appendingPathComponent("opendrobo-fskit-held-root-\(UUID().uuidString)")
         var rootMoved = false
         defer {

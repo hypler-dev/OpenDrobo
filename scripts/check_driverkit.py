@@ -30,7 +30,12 @@ def main() -> int:
                             *(str(source / file) for file in files), "-o", executable],
                            check=True, env=env)
             subprocess.run([executable], check=True, env=env)
-    print("PASS: twelve ARM64 objects, IIG/link, seven sanitizer suites; inactive bundle, hardware gate closed, no activation")
+        executable = f"{temporary}/source-close-checks"
+        subprocess.run(["xcrun", "clang++", "-std=c++20", "-fblocks", "-Wall", "-Wextra", "-Werror",
+                        "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
+                        str(source / "SourceCloseChecks.cpp"), "-o", executable], check=True, env=env)
+        subprocess.run([executable], check=True, env=env)
+    print("PASS: twelve ARM64 objects, IIG/link, eight sanitizer suites; inactive bundle, hardware gate closed, no activation")
     return 0
 
 

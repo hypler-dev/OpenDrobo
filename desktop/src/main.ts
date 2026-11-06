@@ -273,7 +273,7 @@ const sections: Array<{ id: Section; label: string; icon: string; artwork?: stri
   { id: "sharing", label: "Sharing", icon: "⇄" },
   { id: "console", label: "Console", icon: "›_" },
   { id: "mcp", label: "MCP", icon: "◇" },
-  { id: "management", label: "Reference", icon: "◌" },
+  { id: "management", label: "Capabilities & limits", icon: "◌" },
   { id: "tools", label: "Tools", icon: "⌘", artwork: "DroboNav-tools.png", activeArtwork: "DroboNav-toolsA.png" },
   { id: "settings", label: "Drobo Settings", icon: "⚙", artwork: "DroboNav-settings.png", activeArtwork: "DroboNav-settingsA.png" },
   { id: "preferences", label: "Dashboard Prefs", icon: "≡", artwork: "DroboNav-prefs.png", activeArtwork: "DroboNav-prefsA.png" },
@@ -361,6 +361,7 @@ let requestGeneration = 0;
 let capacityRequestSequence = 0;
 let updateRequestSequence = 0;
 let capacityExpiryTimer: number | null = null;
+let focusAfterNavigation = false;
 
 function requiredElement(id: string): HTMLElement {
   const element = document.getElementById(id);
@@ -392,17 +393,25 @@ function render(): void {
   const consoleDomState = captureConsoleDomState();
   const eventsDomState = captureEventsDomState();
   const managementDomState = captureManagementDomState();
-  const shell = element("main", "app-shell");
+  const shell = element("div", "app-shell");
   shell.append(header(), element("div", "rainbow-rule"));
   shell.append(beautyLineup());
   const body = element("div", "shell-body");
   body.append(sidebar(), panel());
   shell.append(body);
-  app.replaceChildren(shell);
+  const skip = document.createElement("a");
+  skip.href = "#main-content";
+  skip.className = "skip-link";
+  skip.textContent = "Skip to main content";
+  app.replaceChildren(skip, shell);
   restoreDashboardDomState(dashboardDomState);
   restoreConsoleDomState(consoleDomState);
   restoreEventsDomState(eventsDomState);
   restoreManagementDomState(managementDomState);
+  if (focusAfterNavigation) {
+    focusAfterNavigation = false;
+    window.requestAnimationFrame(() => requiredElement("main-content").focus());
+  }
   syncConsolePolling();
   syncEventsPolling();
 }
@@ -410,10 +419,10 @@ function render(): void {
 function header(): HTMLElement {
   const headerElement = element("header", "topbar");
   const brand = element("div", "brand");
-  brand.append(textElement("strong", "OpenDrobo"), textElement("span", "DEVELOPMENT PREVIEW"));
+  brand.append(textElement("strong", "OpenDrobo"), textElement("span", "STORAGE DASHBOARD"));
   const selectedPool = currentPool();
   const title = textElement("h1", selectedPool ? deviceLabel(selectedPool.brand, selectedPool.model, selectedPool.connectionType) : "Drobo Dashboard");
-  const metadata = textElement("div", appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "development local dashboard", "top-meta");
+  const metadata = textElement("div", appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "Version unavailable", "top-meta");
   headerElement.append(brand, title, metadata);
   return headerElement;
 }
@@ -427,6 +436,7 @@ function sidebar(): HTMLElement {
     button.type = "button";
     button.classList.toggle("selected", selectedSection === section.id);
     button.setAttribute("aria-current", selectedSection === section.id ? "page" : "false");
+    button.dataset.section = section.id;
     const icon = textElement("span", section.icon, "nav-icon");
     const artworkName = selectedSection === section.id ? section.activeArtwork : section.artwork;
     if (artworkName) {
@@ -468,6 +478,20 @@ function sidebar(): HTMLElement {
     group.append(heading, items);
     nav.append(group);
   }
+  const navButtons = [...nav.querySelectorAll<HTMLButtonElement>(".nav-item")];
+  navButtons.forEach((button, index) => {
+    button.tabIndex = button.dataset.section === selectedSection ? 0 : -1;
+    button.addEventListener("keydown", (event) => {
+      const home = event.key === "Home";
+      const end = event.key === "End";
+      const direction = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+      if (!home && !end && direction === 0) return;
+      event.preventDefault();
+      const next = home ? 0 : end ? navButtons.length - 1 : (index + direction + navButtons.length) % navButtons.length;
+      navButtons.forEach((candidate, candidateIndex) => { candidate.tabIndex = candidateIndex === next ? 0 : -1; });
+      navButtons[next]?.focus();
+    });
+  });
   aside.append(nav, productLineup(), footerInfo());
   return aside;
 }
@@ -556,8 +580,10 @@ function footerInfo(): HTMLElement {
 }
 
 function panel(): HTMLElement {
-  const content = element("section", "content");
+  const content = element("main", "content");
+  content.setAttribute("aria-label", sections.find((section) => section.id === selectedSection)?.label ?? "Dashboard");
   content.id = "main-content";
+  content.tabIndex = -1;
   content.dataset.section = selectedSection;
   switch (selectedSection) {
     case "all": return allDevicesPanel(content);
@@ -652,7 +678,14 @@ function allDevicesPanel(content: HTMLElement): HTMLElement {
 }
 
 function statusPanel(content: HTMLElement): HTMLElement {
-  content.append(panelIntro("Status", "Device and drive information."));
+  const intro = panelIntro("Status", "Device and drive information.");
+  const refresh = actionButton(poolLoading ? "Refreshing…" : "Refresh status", "primary", () => void loadPoolStatus(true));
+  refresh.id = "status-refresh";
+  refresh.disabled = poolLoading;
+  const actions = element("div", "panel-actions");
+  actions.append(refresh);
+  intro.append(actions);
+  content.append(intro);
   if (poolLoading && !poolStatus) {
     content.append(liveStatus("Reading device snapshot", "Requesting the local original-service snapshot.", "quiet"));
     return content;
@@ -666,6 +699,7 @@ function statusPanel(content: HTMLElement): HTMLElement {
     return content;
   }
   if (poolStatus.pools.length > 1) content.append(statusDevicePicker(poolStatus.pools));
+  if (poolStatus.sourceTrust === "unverified-loopback") content.append(textElement("p", "Local service report; not independently verified by hardware.", "scope-note"));
   if (poolIsStale()) content.append(liveStatus("Device snapshot stale", poolStaleError ?? "The original-service snapshot is older than 30 seconds.", "quiet"));
   const pool = currentPool();
   if (!pool) { content.append(stateCard("Choose a Drobo", "Select an enclosure above to view its system information.", "quiet")); return content; }
@@ -722,15 +756,19 @@ function poolSelector(id: string): HTMLLabelElement {
   placeholder.selected = selectedPoolId === null;
   select.append(placeholder);
   for (const pool of poolStatus?.pools ?? []) {
-    const option = new Option(deviceLabel(pool.brand, pool.model, pool.connectionType), pool.id);
+    const pools = poolStatus?.pools ?? [];
+    const label = deviceLabel(pool.brand, pool.model, pool.connectionType);
+    const duplicate = pools.filter((candidate) => deviceLabel(candidate.brand, candidate.model, candidate.connectionType) === label).length > 1;
+    const option = new Option(duplicate ? `${label} · ${statusUnitLabel(pool.id, pools.map((candidate) => candidate.id))}` : label, pool.id);
     option.selected = pool.id === selectedPoolId;
     select.append(option);
   }
   select.addEventListener("change", () => {
     if (!poolStatus?.pools.some((pool) => pool.id === select.value)) return;
     clearPendingControl("Selected Drobo changed; pending power confirmation was cancelled.");
+    const previousPoolId = selectedPoolId;
     selectedPoolId = select.value;
-    selectedControlTargetId = select.value;
+    if (previousPoolId !== selectedPoolId) selectedControlTargetId = null;
     selectedBaySlot = null;
     render();
   });
@@ -747,7 +785,11 @@ function controlDeviceLabel(target: ControlTarget): string {
 function poolDeviceCard(pool: PoolStatus): HTMLElement {
   const card = element("article", "device-card glass");
   card.classList.toggle("device-selected", selectedPoolId === pool.id);
-  card.append(unitPortrait(pool, !poolIsStale()), textElement("h2", deviceLabel(pool.brand, pool.model, pool.connectionType)));
+  const label = deviceLabel(pool.brand, pool.model, pool.connectionType);
+  const poolIds = poolStatus?.pools.map((candidate) => candidate.id) ?? [];
+  const duplicate = (poolStatus?.pools.filter((candidate) => deviceLabel(candidate.brand, candidate.model, candidate.connectionType) === label).length ?? 0) > 1;
+  card.append(unitPortrait(pool, !poolIsStale()), textElement("h2", label));
+  if (duplicate) card.append(textElement("small", statusUnitLabel(pool.id, poolIds), "status-copy"));
   card.append(textElement("p", `Capacity ${formatDecimalBytes(pool.protectedUsedBytes)} used of ${formatDecimalBytes(pool.protectedTotalBytes)}. ${poolIsStale() ? "Snapshot stale." : "Snapshot current."}`, "status-copy"));
   if (isFiveD(pool)) {
     const indicators = fiveDBayIndicators(pool.slots, !poolIsStale());
@@ -758,8 +800,9 @@ function poolDeviceCard(pool: PoolStatus): HTMLElement {
     card.append(summary);
   }
 
-  const select = actionButton("Open status", "secondary", () => { if (selectedPoolId !== pool.id) clearPendingControl("Pool changed; pending control confirmation was cancelled."); selectedPoolId = pool.id; selectedControlTargetId = pool.id; selectedBaySlot = null; selectedSection = "status"; requestGeneration += 1; render(); });
+  const select = actionButton("Open status", "secondary", () => { if (selectedPoolId !== pool.id) { clearPendingControl("Pool changed; pending control confirmation was cancelled."); selectedControlTargetId = null; } selectedPoolId = pool.id; selectedBaySlot = null; selectSection("status"); });
   select.id = `pool-${encodeURIComponent(pool.id)}`;
+  select.setAttribute("aria-label", `Open status for ${label}${duplicate ? `, ${statusUnitLabel(pool.id, poolIds)}` : ""}`);
   card.append(select);
   return card;
 }
@@ -892,7 +935,17 @@ function cacheSlot(pool: PoolStatus): PoolSlot | null {
 function statusAdvancedDetails(pool: PoolStatus): HTMLElement {
   const details = document.createElement("details");
   details.className = "advanced-details";
-  details.append(textElement("summary", "Advanced technical details"), textElement("p", `Raw device state: ${formatRawDeviceStatus(pool.deviceStatus)}`, "status-copy"), poolLunTable(pool), poolSlotTable(pool));
+  const luns = poolLunTable(pool);
+  luns.classList.add("advanced-table-scroll");
+  luns.tabIndex = 0;
+  luns.setAttribute("role", "region");
+  luns.setAttribute("aria-label", "Advanced logical volume table");
+  const slots = poolSlotTable(pool);
+  slots.classList.add("advanced-table-scroll");
+  slots.tabIndex = 0;
+  slots.setAttribute("role", "region");
+  slots.setAttribute("aria-label", "Advanced physical slot table");
+  details.append(textElement("summary", "Advanced technical details"), textElement("p", `Raw device state: ${formatRawDeviceStatus(pool.deviceStatus)}`, "status-copy"), luns, slots);
   for (const slot of pool.slots) details.append(textElement("p", `Slot ${slot.slot} raw state: ${formatRawSlotStatus(slot.rawStatus)}`, "status-copy"));
   return details;
 }
@@ -1011,13 +1064,13 @@ function deviceEventRecord(record: DeviceEvent): HTMLElement {
 }
 
 function managementPanel(content: HTMLElement): HTMLElement {
-  content.append(panelIntro("Reference", "Read-only capability catalogue. It does not determine per-unit availability or send actions."));
+  content.append(panelIntro("Capabilities and limits", "Available and unavailable dashboard capabilities. Per-unit control availability remains in Tools."));
   const inventory = element("section", "management-grid");
   const controls: Array<{ category: string; name: string; state: "available" | "research" | "unsupported"; message: string }> = [
     { category: "Monitoring", name: "Pool and device snapshot", state: "available", message: "Local original-service snapshot only; no control action is sent." },
-    { category: "Device preferences", name: "Identify / blink", state: "research", message: "Current per-unit availability is reported in the allowlisted controls above; broader transport coverage remains under research." },
-    { category: "Device preferences", name: "LED brightness and night mode", state: "research", message: "Current per-unit availability is reported in the allowlisted controls above; broader transport coverage remains under research." },
-    { category: "Device preferences", name: "Restart, shutdown, and standby", state: "research", message: "Current per-unit availability is reported in the allowlisted controls above; broader transport coverage remains under research." },
+    { category: "Device preferences", name: "Identify / blink", state: "research", message: "Check Tools for this device’s available controls. Other connections are unavailable." },
+    { category: "Device preferences", name: "LED brightness and night mode", state: "research", message: "Check Tools for this device’s available controls. Other connections are unavailable." },
+    { category: "Device preferences", name: "Restart, shutdown, and standby", state: "research", message: "Check Tools for this device’s available controls. Other connections are unavailable." },
     { category: "Device preferences", name: "Rename device", state: "research", message: "Requires exact device-setting semantics and a confirmed target state." },
     { category: "Device preferences", name: "Dual disk redundancy", state: "research", message: "Requires exact configuration semantics and a confirmed state model." },
     { category: "Device preferences", name: "Drive spindown", state: "research", message: "Requires exact configuration semantics and a confirmed state model." },
@@ -1031,7 +1084,7 @@ function managementPanel(content: HTMLElement): HTMLElement {
     { category: "NAS administration", name: "NAS time and administrator settings", state: "unsupported", message: "Model-specific NAS administration is not implemented." },
     { category: "Network", name: "LAN automatic and manual discovery", state: "unsupported", message: "Network discovery configuration is not implemented." },
     { category: "Extensions", name: "DroboSync and DroboApps", state: "unsupported", message: "NAS extension management is not implemented." },
-    { category: "Hardware", name: "Performance sensors, fans, power, and battery", state: "research", message: "Model-specific hardware telemetry remains under research." },
+    { category: "Hardware", name: "Performance sensors, fans, power, and battery", state: "research", message: "Fan, battery and performance telemetry is unavailable for this model." },
     { category: "Diagnostics", name: "Diagnostic and support exports", state: "unsupported", message: "Support export tooling is not implemented; no shell or credential tooling is exposed." }
   ];
   let category = "";
@@ -1040,16 +1093,12 @@ function managementPanel(content: HTMLElement): HTMLElement {
       category = item.category;
       inventory.append(textElement("h3", category, "management-category"));
     }
+    const state = item.state === "available" ? "available" : "unavailable";
     const card = element("article", "management-card glass");
-    card.append(textElement("span", item.state, `management-state ${item.state}`), textElement("h3", item.name), textElement("p", item.message, "status-copy"));
-    if (item.state !== "available") {
-      const control = actionButton(item.state === "research" ? "Catalogue item" : "Not supported", "secondary", () => undefined);
-      control.disabled = true;
-      card.append(control);
-    }
+    card.append(textElement("span", state, `management-state ${state}`), textElement("h3", item.name), textElement("p", item.message, "status-copy"));
     inventory.append(card);
   }
-  content.append(textElement("p", "Reference only. Controls live in Tools; no catalogue card sends an action.", "scope-note"), inventory);
+  content.append(textElement("p", "This page describes limits only. Controls remain in Tools and require an explicit control target.", "scope-note"), inventory);
   return content;
 }
 
@@ -1078,10 +1127,10 @@ function controlStatusPanel(): HTMLElement {
   if (controlStatus.targets.length > 1 || !selectedControlTarget()) panel.append(controlTargetSelect(controlStatus.targets));
   const target = selectedControlTarget();
   if (!target) {
-    panel.append(stateCard("Selected device unavailable", "Refresh device information before using controls for this Drobo.", "quiet"));
+    panel.append(stateCard("Choose a control target", "Choose a control target in Tools before any device operation. Display selection does not grant control authority.", "quiet"));
     return panel;
   }
-  panel.append(textElement("p", `${controlDeviceLabel(target)} · Experimental controls. Power operations require all Drobo volumes to be ejected.`, "status-copy"));
+  panel.append(textElement("p", `${controlDeviceLabel(target)} · Hardware commands are unvalidated. Confirm the intended enclosure, eject every Drobo volume before any power operation, and use only the displayed allowlisted action.`, "status-copy"));
   const controls = element("div", "control-grid");
   const order: ControlAction[] = ["identify", "shutdown", "standby", "restart", "get-brightness", "brightness"];
   const deviceControls = target.controls.filter((control) => control.action !== "brightness" && control.action !== "get-brightness");
@@ -1346,6 +1395,7 @@ function capacityHistoryPanel(): HTMLElement {
   if (!capacityHistory && !capacityHistoryLoading && !capacityHistoryError) window.queueMicrotask(() => void loadCapacityHistory());
   if (capacityHistoryLoading && !capacityHistory) return liveStatus("Reading observations", "Loading recorded capacity measurements.", "quiet");
   if (capacityHistoryError) return liveStatus("History unavailable", capacityHistoryError, "error");
+  if (capacityHistory?.state === "unavailable") return stateCard("History unavailable", capacityHistory.message, "quiet");
   if (!capacityHistory?.pools.length) return stateCard("Collecting history", "Statistics appear as OpenDrobo records actual device readings.", "quiet");
   const historyPool = capacityHistory.pools.find((pool) => pool.id === statisticsPoolId)
     ?? capacityHistory.pools.find((pool) => pool.id === selectedPoolId) ?? capacityHistory.pools[0];
@@ -1627,10 +1677,13 @@ function volumesPanel(content: HTMLElement): HTMLElement {
     content.append(stateCard("No Drobo volumes reported", storageStatus.message || "No mounted Drobo volumes were returned by the local service.", "quiet"));
   } else {
     const groups = groupDroboVolumes(storageStatus.volumes);
+    const groupNameCounts = new Map<string, number>();
+    for (const group of groups) groupNameCounts.set(group.name, (groupNameCounts.get(group.name) ?? 0) + 1);
     for (const group of groups) {
       const card = element("section", "volume-group glass");
       const heading = element("div", "volume-group-heading");
-      heading.append(textElement("h3", group.name), textElement("span", `${group.volumes.length} mounted ${group.volumes.length === 1 ? "volume" : "volumes"}`, "status-copy"));
+      const groupLabel = (groupNameCounts.get(group.name) ?? 0) > 1 ? `${group.name} · ${group.key.split(":").at(-1)?.slice(-6)}` : group.name;
+      heading.append(textElement("h3", groupLabel), textElement("span", `${group.volumes.length} mounted ${group.volumes.length === 1 ? "volume" : "volumes"}`, "status-copy"));
       card.append(heading);
       const list = element("ul", "volume-list");
       for (const volume of [...group.volumes].sort((a, b) => a.name.localeCompare(b.name))) {
@@ -1647,7 +1700,7 @@ function volumesPanel(content: HTMLElement): HTMLElement {
         row.append(icon, identity, used); list.append(row);
       }
       const advanced = document.createElement("details"); advanced.className = "advanced-details";
-      const technical = element("div", "volume-technical-scroll"); technical.tabIndex = 0; technical.setAttribute("role", "region"); technical.setAttribute("aria-label", `${group.name} logical volume details`); technical.append(droboVolumeTechnicalTable(group.volumes));
+      const technical = element("div", "volume-technical-scroll"); technical.tabIndex = 0; technical.setAttribute("role", "region"); technical.setAttribute("aria-label", `${groupLabel} logical volume details`); technical.append(droboVolumeTechnicalTable(group.volumes));
       advanced.append(textElement("summary", "Logical capacity and volume details"), textElement("p", "Logical filesystem totals and available space can reflect thin provisioning. They are not the disk pack’s physical usable or free capacity.", "status-copy"), technical);
       card.append(list, textElement("p", group.bound ? "These volumes share this enclosure’s BeyondRAID disk pack. Files are distributed across the pack; volumes are not assigned to individual drive bays." : "Drobo volume verified. Its physical enclosure grouping is unavailable; no shared-pack relationship is assumed.", "status-copy"), advanced);
       content.append(card);
@@ -1812,7 +1865,7 @@ function sharingConfigurationCard(status: SharingStatusResponse): HTMLElement {
   } else if (macos) {
     card.append(textElement("p", "Native File Sharing settings are not available from this desktop runtime.", "status-copy"));
   } else {
-    card.append(textElement("p", "Windows and Linux native sharing adapters are planned or unavailable. OpenDrobo does not create accounts or change ACLs.", "status-copy"));
+    card.append(textElement("p", "Windows and Linux native sharing adapters are unavailable. OpenDrobo does not create accounts or change ACLs.", "status-copy"));
   }
   if (sharingSettingsStatus) card.append(textElement("p", sharingSettingsStatus, "status-copy"));
   return card;
@@ -1829,12 +1882,13 @@ function consoleRecord(record: ConsoleRecord): HTMLElement {
 function mcpCard(): HTMLElement {
   const card = element("section", "mcp-card glass");
   card.append(textElement("h3", "Local MCP access", "card-heading"), textElement("p", "Starts only with --mcp-stdio. No MCP network listener, device control, file reader, or shell is exposed.", "status-copy"), textElement("p", "Client may receive mounted-volume, share, device, capacity, SSD, event, and history metadata, then may forward it. Choose trusted client. OpenDrobo keeps bounded local logs/history writes.", "status-copy"));
-  const command = appInfo?.mcpCommandPath ?? "/absolute/path/to/opendrobo-desktop";
-  const config = JSON.stringify({ mcpServers: { opendrobo: { command, args: ["--mcp-stdio"] } } }, null, 2);
-  const code = textElement("pre", config, "mcp-config");
-  const copy = actionButton("Copy MCP config", "secondary", () => void copyText(config, "MCP configuration copied.", "mcp"));
-  card.append(code, copy);
-  if (!appInfo?.mcpCommandPath) card.append(textElement("p", "Replace the absolute command placeholder with this app bundle's executable path before using the configuration.", "status-copy"));
+  const command = appInfo?.mcpCommandPath;
+  if (command) {
+    const config = JSON.stringify({ mcpServers: { opendrobo: { command, args: ["--mcp-stdio"] } } }, null, 2);
+    const code = textElement("pre", config, "mcp-config");
+    const copy = actionButton("Copy MCP config", "secondary", () => void copyText(config, "MCP configuration copied.", "mcp"));
+    card.append(code, copy);
+  } else card.append(textElement("p", "MCP command path unavailable. Open the installed desktop app to obtain its configuration.", "status-copy"));
   card.append(textElement("p", "Advanced provenance: data depends on an unauthenticated original loopback service. It is not security-attested.", "scope-note"));
   if (mcpClipboardStatus) card.append(textElement("p", mcpClipboardStatus, "status-copy"));
   return card;
@@ -1940,6 +1994,7 @@ function capacityPanel(content: HTMLElement): HTMLElement {
   const pool = currentPool();
   if (pool) {
     const stale = poolIsStale();
+    if (poolStatus?.sourceTrust === "unverified-loopback") content.append(textElement("p", "Local service report; not independently verified by hardware.", "scope-note"));
     if (stale) content.append(liveStatus("Pool snapshot stale", `Last reported ${new Date(poolStatus?.observedAtMs ?? 0).toLocaleString()}. Values below are last reported, not current.`, "quiet"));
     content.append(capacityWorkspace(pool, stale));
   } else content.append(stateCard(pools.length ? "Choose a Drobo" : "Capacity unavailable", pools.length ? "Select a Drobo to view usable capacity." : "Device information has not been reported yet.", "quiet"));
@@ -1986,10 +2041,10 @@ function capacityPanel(content: HTMLElement): HTMLElement {
 function capacityWorkspace(pool: PoolStatus, stale: boolean): HTMLElement {
   const workspace = element("section", `capacity-workspace glass${stale ? " stale-values" : ""}`);
   const installed = installedCapacity(dataSlots(pool).map((slot) => slot.physicalCapacityBytes));
+  const accounting = usageAccounting(pool.protectedTotalBytes, pool.protectedUsedBytes, pool.protectedFreeBytes);
   if (capacityMode === "usage") {
     const usage = element("div", "capacity-right usage-breakdown");
     usage.append(textElement("h3", stale ? "Last reported space usage" : "Space usage"));
-    const accounting = usageAccounting(pool.protectedTotalBytes, pool.protectedUsedBytes, pool.protectedFreeBytes);
     if (accounting) {
       const metrics = element("dl", "usage-metrics");
       appendDefinition(metrics, "Used in protected pool", formatDecimalBytes(accounting.used));
@@ -2004,9 +2059,11 @@ function capacityWorkspace(pool: PoolStatus, stale: boolean): HTMLElement {
     hardware.append(textElement("h3", "SSD cache", "card-heading"), textElement("p", ssd ? `${formatPhysicalCapacity(ssd.physicalCapacityBytes)} · ${ssd.ssdLifeRemainingPercent === null ? "Life not reported" : `${ssd.ssdLifeRemainingPercent}% life remaining`}. Cache occupancy is not reported.` : "No SSD cache reported.", "status-copy"));
     workspace.append(usage, hardware); return workspace;
   }
-  const total = pool.protectedTotalBytes;
-  const used = pool.protectedUsedBytes;
-  const free = pool.protectedFreeBytes;
+  if (!accounting) {
+    workspace.append(stateCard("Protected capacity unavailable", "The reported protected total, used, and free values are inconsistent. No capacity chart is shown.", "quiet"));
+    return workspace;
+  }
+  const { total, used, free } = accounting;
   const donut = capacityDonutValues("Protected pool capacity", total, used, free);
   const legend = element("div", "capacity-legend");
   for (const [name, value] of [["Used", used], ["Free", free], ["Total", total]]) legend.append(textElement("span", `${name}: ${formatDecimalBytes(value)}`));
@@ -2073,22 +2130,9 @@ function preferencesPanel(content: HTMLElement): HTMLElement {
   settings.append(actions);
   if (updateResult) settings.append(stateCard(updateTitle(updateResult.state), updateResult.message, updateResult.state === "error" ? "error" : "quiet"));
   content.append(settings);
-  const discovery = element("section", "preferences-card glass");
-  discovery.append(textElement("h3", "Discovery", "card-heading"), disabledCheckbox("Automatically discover Drobos", "Configuration unavailable"), disabledTextField("Manual device address"), textElement("p", "Local discovery remains available from All Drobos.", "status-copy"));
-  const notifications = element("section", "preferences-card glass");
-  notifications.append(textElement("h3", "Dashboard alerts", "card-heading"), disabledOptions("Alert threshold", ["Useful", "Important", "Critical"]), disabledCheckbox("Email alerts", "Unavailable"), unavailableSettingButton("Configure email"));
-  const appearance = element("section", "preferences-card glass");
-  appearance.append(textElement("h3", "Application", "card-heading"), disabledCheckbox("Show in system tray", "Unavailable"));
-  const language = textElement("label", "Preferred language", "field-label");
-  const select = document.createElement("select");
-  select.disabled = true;
-  select.className = "device-select";
-  const english = document.createElement("option");
-  english.textContent = "English";
-  select.append(english);
-  language.append(select);
-  appearance.append(language, textElement("p", "Additional languages and notification preferences are not implemented yet.", "status-copy"));
-  content.append(discovery, notifications, appearance);
+  const support = element("section", "preferences-card glass");
+  support.append(textElement("h3", "Support limits", "card-heading"), textElement("p", "This dashboard uses the current system language and has no email, tray, manual-discovery, or notification preference form. Reconnect a Drobo, refresh Status, then use Help if reported information remains stale.", "status-copy"));
+  content.append(support);
   return content;
 }
 
@@ -2173,11 +2217,12 @@ function ledSettingsPanel(): HTMLElement {
   slider.min = "0";
   slider.max = "9";
   slider.step = "1";
-  slider.value = String(choice.desired ?? 5);
+  slider.value = String(choice.desired ?? 0);
+  slider.classList.toggle("is-unset", choice.desired === null);
   slider.disabled = controlStatusError !== null || !setter.enabled || controlBusyAction !== null;
-  slider.setAttribute("aria-valuetext", choice.desired === null ? "No desired preset selected" : `Desired preset ${choice.desired} of 9`);
+  slider.setAttribute("aria-valuetext", choice.desired === null ? "No desired level selected" : `Desired preset ${choice.desired} of 9`);
   sliderLabel.htmlFor = slider.id;
-  const selected = textElement("output", choice.desired === null ? "Choose a level" : `Desired preset ${choice.desired} of 9`, "led-desired");
+  const selected = textElement("output", choice.desired === null ? "No level selected — neutral display" : `Desired preset ${choice.desired} of 9`, "led-desired");
   selected.setAttribute("for", slider.id);
   const set = actionButton(controlBusyAction === "brightness" ? "Applying…" : "Apply light level", "secondary", () => {
     if (choice.desired !== null) void executeControl(target.id, setter, choice.desired);
@@ -2187,6 +2232,7 @@ function ledSettingsPanel(): HTMLElement {
     const value = Number(slider.value);
     if (!Number.isInteger(value) || value < 0 || value > 9) return;
     choice.desired = value;
+    slider.classList.remove("is-unset");
     selected.value = `Desired preset ${value} of 9`;
     slider.setAttribute("aria-valuetext", selected.value);
     set.disabled = slider.disabled;
@@ -2211,42 +2257,10 @@ function ledSettingsPanel(): HTMLElement {
   return panel;
 }
 
-function disabledTextField(labelText: string, kind: "text" | "password" | "number" = "text"): HTMLLabelElement {
-  const label = textElement("label", labelText, "field-label");
-  const input = document.createElement("input");
-  input.type = kind;
-  input.disabled = true;
-  input.placeholder = "Unavailable";
-  input.autocomplete = "off";
-  label.append(input);
-  return label;
-}
-
-function disabledOptions(labelText: string, options: string[]): HTMLFieldSetElement {
-  const field = element("fieldset", "settings-options");
-  field.disabled = true;
-  field.append(textElement("legend", labelText));
-  for (const [index, option] of options.entries()) {
-    const label = textElement("label", option, "radio-row");
-    const input = document.createElement("input");
-    input.type = "radio";
-    input.name = `unavailable-${labelText}`;
-    input.value = String(index);
-    input.disabled = true;
-    label.prepend(input);
-    field.append(label);
-  }
-  return field;
-}
-
 function unavailableSettingButton(label: string): HTMLButtonElement {
   const button = actionButton(label, "secondary", () => undefined);
   button.disabled = true;
   return button;
-}
-
-function disabledCheckbox(labelText: string, state: string): HTMLLabelElement {
-  const label = textElement("label", labelText, "toggle-row disabled-toggle"); const input = document.createElement("input"); input.type = "checkbox"; input.disabled = true; input.indeterminate = true; input.setAttribute("aria-checked", "mixed"); label.prepend(input); label.append(textElement("span", state, "status-copy")); return label;
 }
 
 function mcpPanel(content: HTMLElement): HTMLElement {
@@ -2254,7 +2268,7 @@ function mcpPanel(content: HTMLElement): HTMLElement {
 }
 
 function helpPanel(content: HTMLElement): HTMLElement {
-  content.append(panelIntro("Help", "Local read-only dashboard."), stateCard("Capability boundary", "Review Reference for supported and unavailable features. Controls are in Tools.", "quiet")); return content;
+  content.append(panelIntro("Help", "Local read-only dashboard."), stateCard("Reconnect, refresh, and support limits", "Reconnect the enclosure, refresh Status or Capacity, and treat stale values as last reported. Use Capabilities and limits for unavailable features. Tools only exposes backend-reported allowlisted controls for an explicitly chosen target.", "quiet")); return content;
 }
 
 function panelIntro(title: string, subtitle: string): HTMLElement {
@@ -2413,6 +2427,7 @@ function schedulePoolExpiry(requestToken: number): void {
 function selectSection(section: Section): void {
   if (section !== selectedSection) clearPendingControl("Page changed; pending power confirmation was cancelled.");
   selectedSection = section;
+  focusAfterNavigation = true;
   requestGeneration += 1;
   capacityRequestSequence += 1;
   updateRequestSequence += 1;
@@ -2891,7 +2906,7 @@ async function initialize(): Promise<void> {
   render();
   if (!tauriAvailable()) {
     inventoryLoading = false;
-    inventoryError = "Desktop runtime unavailable. Browser preview has no device fixture, registry, or hardware access.";
+    inventoryError = "Desktop app required. Browser preview cannot access local devices or storage.";
     render();
     return;
   }

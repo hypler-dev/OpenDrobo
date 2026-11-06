@@ -1,34 +1,37 @@
 # OpenDrobo
 
-OpenDrobo is an independent management console for Drobo storage, built around a portable core and shared interface. It brings device discovery, protected-pool capacity, mounted-volume statistics, drive and SSD telemetry, events, sharing visibility, and guarded management controls into one dark glass interface.
+OpenDrobo is an independent desktop dashboard for Drobo storage. See your enclosure, drive bays, usable capacity, mounted volumes and storage activity in one dark interface.
 
-The first supported hardware path is a Drobo 5D over Thunderbolt to macOS. Broader 5D-class compatibility remains unverified. The console identifies enclosure and model, groups multiple logical volumes under one physical unit when host exposes that relationship, and keeps pool capacity separate from Finder filesystem view. It can show protected capacity recovered from original management service, OS-reported HFS+ usage, disk slots, and SSD life data when available.
+## Your storage at a glance
 
-OpenDrobo is not affiliated with Drobo. It is source-first software. No vendor binaries, firmware, artwork, credentials, or private host captures are distributed.
+- One enclosure per Drobo, with automatic selection when only one unit is connected.
+- Drive-bay indicators with explanations for capacity warnings, drive faults and data protection.
+- Protected usable, used and free capacity, shown separately from raw drive capacity and macOS filesystem usage.
+- A tidy volume list with native Mac icons, filesystem, mount location, permissions and enclosure grouping.
+- Drive make/model, firmware and SSD capacity/life when the device reports them.
+- Capacity history, charts, observation gaps, events and a bounded application console.
+- Native Mac sharing visibility and a shortcut to File Sharing settings. macOS accounts and folder permissions remain authoritative.
+- Optional read-only MCP access for a trusted local assistant or script. See the [MCP guide](docs/MCP.md).
 
-## What you can do
+The dashboard can show model-specific light and power controls with explicit selection and safety checks. Live control validation remains pending on a separate disposable test unit.
 
-- Discover Drobo units and show brand, model, reported firmware, drive make/model, connection, enclosure state, and drive-slot presence.
-- View protected pool total, used, and free bytes alongside each logical volume's host-reported total and usage.
-- Inspect SSD capacity and reported life remaining without inventing cache usage when device does not expose it.
-- Review bounded application and device events, console records, service state, time-range capacity statistics, allocation changes, recording gaps, and Drobo sharing metadata.
-- Inspect native macOS SMB/NFS service status, list SMB exports whose configured paths fall beneath Drobo mount roots, and open macOS File Sharing settings. This path classification does not resolve symlink targets or grant file access. Non-Drobo volumes and unrelated SMB exports stay outside this product flow; macOS accounts and ACLs remain authoritative.
-- Connect a trusted local assistant or script through optional read-only MCP for inventory, capacity, pool, storage, sharing, capabilities, console, events, control availability, and capacity history. See the [MCP guide](docs/MCP.md) for data access and trust boundaries.
-- View experimental light/identify presets and power controls recovered from the original interface. They are offline-recovered and mock-tested only; no live hardware light or power control has been validated.
+## Compatibility
 
-## Current support
+The desktop app targets macOS 14 or later. A Drobo 5D over Thunderbolt has been observed on an Intel Mac running macOS 14.7.7. Apple-silicon packages build, but device connectivity on Apple silicon remains unverified. The original Drobo management driver is required.
 
-macOS 14 or later is active desktop target. Intel macOS 14 and Apple silicon builds use shared Rust/Tauri application. Original Drobo management driver remains required for current Thunderbolt management path. Replacement DriverKit and filesystem research components compile or test in isolation; they are not installed, activated, or used to change Finder geometry.
+HFS+ and APFS volumes are visible when macOS mounts them and their Drobo binding is verified. Non-Drobo volumes and unrelated network shares are excluded. Linux and Windows device adapters, other array providers and additional filesystem support remain future work; see the [support matrix](docs/STORAGE_SUPPORT.md).
 
-Linux and Windows are planned adapter targets. Drobo Thunderbolt transport adapters, installers, device-management backends, and OpenDrobo host-volume adapters remain unimplemented there. Host-mounted filesystem support comes from each operating system, not OpenDrobo.
+## Capacity and data safety
 
-## Filesystem and RAID support
+Drobo's logical volume ceiling can be much larger than its installed usable capacity. OpenDrobo shows protected-pool capacity and filesystem usage separately. It does not change Finder's capacity reporting or rewrite filesystem geometry.
 
-OpenDrobo currently reports Drobo volumes that macOS has mounted, using native host statistics and verified Drobo binding. HFS+ and APFS are visible when mounted on macOS. Non-Drobo volumes, generic host filesystem inventory, and unrelated SMB exports are outside current product flow.
+OpenDrobo does not currently assemble BeyondRAID member disks, reconstruct or repair an array, format a disk pack, reset a unit, or update firmware. These capabilities require further research and disposable-hardware validation. The [spare-unit lab guide](docs/SPARE_UNIT_LAB.md) prepares an offline test plan without running hardware operations.
 
-OpenDrobo can inspect Drobo management data and BeyondRAID research, but it does not currently assemble member disks, reconstruct an array, format a disk pack, or repair a damaged volume. Other array providers and RAID formats are future adapter work, not current OpenDrobo support. Support matrix in [docs/STORAGE_SUPPORT.md](docs/STORAGE_SUPPORT.md) records boundaries.
+## Releases and building
 
-## Get started
+The release channel is [OpenDrobo on GitHub](https://github.com/hypler-dev/OpenDrobo/releases). Signing, hardware certification and release gates are tracked in [v1.0 readiness](docs/V1_READINESS.md).
+
+To build locally with the pinned toolchain:
 
 ```sh
 npm --prefix desktop ci
@@ -37,8 +40,8 @@ make build
 open dist/OpenDrobo.app
 ```
 
-Run `--scan-json` for registry-only discovery. Run `--mcp-stdio` to expose fixed read-only MCP service to a local MCP client. Release checks are manual and point only to releases published in this repository; there is no automatic download or installation.
+Local builds use optimized code and ad-hoc signing; they are not notarized distribution releases. App update checks open verified project release pages and do not download or install software automatically.
 
-Read [docs/MANAGEMENT_FEATURES.md](docs/MANAGEMENT_FEATURES.md) for management surface, [docs/STORAGE_SUPPORT.md](docs/STORAGE_SUPPORT.md) for filesystem and RAID boundaries, and [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for architecture, build, protocol, testing, and contribution details. Capacity evidence and Finder limits live in [docs/CAPACITY_REPORTING.md](docs/CAPACITY_REPORTING.md). [Firmware capabilities](docs/FIRMWARE_CAPABILITIES.md) explains further telemetry opportunities and the limits of using macOS RAID with Drobo.
+Read the [management guide](docs/MANAGEMENT_FEATURES.md) for dashboard features, the [developer guide](docs/DEVELOPER_GUIDE.md) for architecture and contribution details, and the [release guide](docs/RELEASING.md) for distribution checks.
 
-OpenDrobo remains conservative around hardware. It does not install drivers, activate extensions, mount filesystems, flash firmware, reset arrays, format disks, erase data, or claim Finder support without hardware and filesystem evidence.
+OpenDrobo is not affiliated with Drobo. Public builds exclude vendor binaries, firmware, extracted vendor artwork, credentials and private captures.

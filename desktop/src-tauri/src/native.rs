@@ -118,6 +118,42 @@ mod macos {
         })
     }
 
+    fn capture_bound_page_with(
+        id: &str,
+        device_scope: impl FnOnce(u64, &mut [c_char], &mut u32) -> Result<(), String>,
+        capture_capacity: impl FnOnce(u64, &mut [u8], &mut usize) -> Result<(), String>,
+        bind_volume: impl FnOnce(&[c_char], &mut u64, &mut u32) -> Result<(), String>,
+        captured_at: impl FnOnce() -> Result<i64, String>,
+    ) -> Result<(Vec<u8>, i64), String> {
+        let registry_id = id
+            .parse::<u64>()
+            .map_err(|_| "Invalid device identifier".to_string())?;
+        if registry_id == 0 {
+            return Err("Invalid device identifier".into());
+        }
+        let mut path = [0 as c_char; 4096];
+        let mut count = 0;
+        device_scope(registry_id, &mut path, &mut count)?;
+        if count != 1 {
+            return Err(
+                "A unique mounted volume is required for this experimental capacity path.".into(),
+            );
+        }
+        let captured_at = captured_at()?;
+        let mut page = [0_u8; 1308];
+        let mut length = 0;
+        capture_capacity(registry_id, &mut page, &mut length)?;
+        if length > page.len() {
+            return Err("Capacity response exceeded its buffer".into());
+        }
+        let mut bound_id = 0;
+        bind_volume(&path, &mut bound_id, &mut count)?;
+        if bound_id != registry_id || count != 1 {
+            return Err("Device or volume binding changed during the capacity read.".into());
+        }
+        Ok((page[..length].to_vec(), captured_at))
+    }
+
     fn capture_bound_page(id: &str) -> Result<(Vec<u8>, i64), String> {
         let registry_id = id
             .parse::<u64>()
@@ -128,35 +164,37 @@ mod macos {
         let _guard = READ_LOCK
             .lock()
             .map_err(|_| "Capacity worker is unavailable".to_string())?;
-        let mut path = [0 as c_char; 4096];
-        let mut count = 0;
-        let scope =
-            unsafe { od_device_scope(registry_id, path.as_mut_ptr(), path.len(), &mut count) };
-        if scope != 0 {
-            return Err(explain(scope));
-        }
-        if count != 1 {
-            return Err(
-                "A unique mounted volume is required for this experimental capacity path.".into(),
-            );
-        }
-        let captured_at = now_ms()?;
-        let mut page = [0_u8; 1308];
-        let mut length = 0;
-        let status =
-            unsafe { od_capture_capacity(registry_id, page.as_mut_ptr(), page.len(), &mut length) };
-        if status != 0 {
-            return Err(explain(status));
-        }
-        if length > page.len() {
-            return Err("Capacity response exceeded its buffer".into());
-        }
-        let mut bound_id = 0;
-        let bound = unsafe { od_bind_volume(path.as_ptr(), &mut bound_id, &mut count) };
-        if bound != 0 || bound_id != registry_id || count != 1 {
-            return Err("Device or volume binding changed during the capacity read.".into());
-        }
-        Ok((page[..length].to_vec(), captured_at))
+        capture_bound_page_with(
+            id,
+            |registry_id, path, count| {
+                let status =
+                    unsafe { od_device_scope(registry_id, path.as_mut_ptr(), path.len(), count) };
+                if status == 0 {
+                    Ok(())
+                } else {
+                    Err(explain(status))
+                }
+            },
+            |registry_id, page, length| {
+                let status = unsafe {
+                    od_capture_capacity(registry_id, page.as_mut_ptr(), page.len(), length)
+                };
+                if status == 0 {
+                    Ok(())
+                } else {
+                    Err(explain(status))
+                }
+            },
+            |path, bound_id, count| {
+                let status = unsafe { od_bind_volume(path.as_ptr(), bound_id, count) };
+                if status == 0 {
+                    Ok(())
+                } else {
+                    Err(explain(status))
+                }
+            },
+            now_ms,
+        )
     }
 
     pub fn raw_capture(id: &str) -> Result<RawCapacityCapture, String> {
@@ -170,9 +208,13 @@ mod macos {
         })
     }
 
-    pub fn capacity(id: &str) -> CapacityResponse {
+    fn capacity_from_capture(
+        id: &str,
+        capture: impl FnOnce(&str) -> Result<(Vec<u8>, i64), String>,
+        clock: impl FnOnce() -> Result<i64, String>,
+    ) -> CapacityResponse {
         let result = (|| {
-            let (page, captured_at) = capture_bound_page(id)?;
+            let (page, captured_at) = capture(id)?;
             // No model has completed the spare-unit byte-scale validation yet.
             // Raw captures remain available without bypassing the decoder gate.
             let record = decode_capacity(
@@ -183,7 +225,7 @@ mod macos {
                     single_volume: true,
                 },
                 captured_at,
-                now_ms()?,
+                clock()?,
             )
             .map_err(|error| error.to_string())?;
             Ok(CapacityResponse {
@@ -197,6 +239,10 @@ mod macos {
             })
         })();
         result.unwrap_or_else(|error: String| CapacityResponse::unavailable(id, error))
+    }
+
+    pub fn capacity(id: &str) -> CapacityResponse {
+        capacity_from_capture(id, capture_bound_page, now_ms)
     }
 
     fn now_ms() -> Result<i64, String> {
@@ -224,6 +270,143 @@ mod macos {
                 "Native capacity interface unavailable (0x{:08x}). Driver or access policy needs validation.",
                 status as u32
             ),
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use std::cell::RefCell;
+
+        fn valid_page() -> Vec<u8> {
+            let mut page = vec![0x7a, 0x02, 0, 32];
+            for value in [60_u64, 40, 100, 100] {
+                page.extend(value.to_be_bytes());
+            }
+            page
+        }
+
+        #[test]
+        fn capture_seam_keeps_scope_capture_rebind_order() {
+            let calls = RefCell::new(Vec::new());
+            let page = capture_bound_page_with(
+                "7",
+                |id, path, count| {
+                    calls.borrow_mut().push("scope");
+                    assert_eq!(id, 7);
+                    path[0] = b'/' as c_char;
+                    *count = 1;
+                    Ok(())
+                },
+                |id, page, length| {
+                    calls.borrow_mut().push("capture");
+                    assert_eq!(id, 7);
+                    page[..4].copy_from_slice(&[0x7a, 0x02, 0, 32]);
+                    *length = 36;
+                    Ok(())
+                },
+                |path, bound_id, count| {
+                    calls.borrow_mut().push("rebind");
+                    assert_eq!(path[0], b'/' as c_char);
+                    *bound_id = 7;
+                    *count = 1;
+                    Ok(())
+                },
+                || Ok(100),
+            )
+            .unwrap();
+            assert_eq!(calls.into_inner(), ["scope", "capture", "rebind"]);
+            assert_eq!(page.1, 100);
+            assert_eq!(page.0.len(), 36);
+        }
+
+        #[test]
+        fn capture_seam_rejects_scope_and_capture_failures_before_rebind() {
+            let scope = capture_bound_page_with(
+                "7",
+                |_, _, _| Err("scope failed".into()),
+                |_, _, _| panic!("capture must not run"),
+                |_, _, _| panic!("rebind must not run"),
+                || Ok(100),
+            );
+            assert_eq!(scope.unwrap_err(), "scope failed");
+
+            let capture = capture_bound_page_with(
+                "7",
+                |_, _, count| {
+                    *count = 1;
+                    Ok(())
+                },
+                |_, _, _| Err("capture failed".into()),
+                |_, _, _| panic!("rebind must not run"),
+                || Ok(100),
+            );
+            assert_eq!(capture.unwrap_err(), "capture failed");
+        }
+
+        #[test]
+        fn capture_seam_refuses_ambiguous_scope_oversized_page_and_changed_binding() {
+            for count in [0, 2] {
+                let ambiguous = capture_bound_page_with(
+                    "7",
+                    |_, _, observed| {
+                        *observed = count;
+                        Ok(())
+                    },
+                    |_, _, _| panic!("capture must not run"),
+                    |_, _, _| panic!("rebind must not run"),
+                    || Ok(100),
+                );
+                assert!(ambiguous.unwrap_err().contains("unique mounted volume"));
+            }
+
+            let oversized = capture_bound_page_with(
+                "7",
+                |_, _, count| {
+                    *count = 1;
+                    Ok(())
+                },
+                |_, page, length| {
+                    *length = page.len() + 1;
+                    Ok(())
+                },
+                |_, _, _| panic!("rebind must not run"),
+                || Ok(100),
+            );
+            assert_eq!(
+                oversized.unwrap_err(),
+                "Capacity response exceeded its buffer"
+            );
+
+            let changed = capture_bound_page_with(
+                "7",
+                |_, _, count| {
+                    *count = 1;
+                    Ok(())
+                },
+                |_, _, length| {
+                    *length = 0;
+                    Ok(())
+                },
+                |_, bound_id, count| {
+                    *bound_id = 8;
+                    *count = 1;
+                    Ok(())
+                },
+                || Ok(100),
+            );
+            assert_eq!(
+                changed.unwrap_err(),
+                "Device or volume binding changed during the capacity read."
+            );
+        }
+
+        #[test]
+        fn byte_units_remain_disabled_and_capacity_is_unavailable() {
+            let response = capacity_from_capture("7", |_| Ok((valid_page(), 100)), || Ok(100));
+            assert_eq!(response.state, "unavailable");
+            assert_eq!(response.message, "capacity byte units are unconfirmed");
+            assert!(response.protected_total_bytes.is_none());
         }
     }
 }

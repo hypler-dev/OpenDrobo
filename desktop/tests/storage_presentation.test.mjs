@@ -28,6 +28,14 @@ test('missing ancestry never merges volumes by name or assumes one enclosure', (
   assert.equal(groups.every((group) => !group.bound), true);
 });
 
+test('same display label remains separate when source ancestry differs', () => {
+  const groups = groupDroboVolumes([
+    { id: 'a', provider: 'drobo', enclosureId: 'physical-a', deviceId: 'lun-a', deviceName: 'Drobo 5D - TB' },
+    { id: 'b', provider: 'drobo', enclosureId: 'physical-b', deviceId: 'lun-b', deviceName: 'Drobo 5D - TB' },
+  ]);
+  assert.deepEqual(groups.map((group) => group.key), ['enclosure:physical-a', 'enclosure:physical-b']);
+});
+
 test('usage uses protected accounting exactly, independent of 20 TB installed and virtual 64 TiB', () => {
   assert.deepEqual(usageAccounting('11746014658560', '3754846629888', '7991168028672'), {
     total: '11746014658560', used: '3754846629888', free: '7991168028672',

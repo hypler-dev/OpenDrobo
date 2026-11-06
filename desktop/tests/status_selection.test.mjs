@@ -17,6 +17,11 @@ test("retains an existing choice and only its previously selected matching contr
   assert.equal(resolveStatusSelection(["pool-a"], "pool-a", "pool-b").controlTargetId, null);
 });
 
+test("read-only selection never creates a Tools target", () => {
+  assert.equal(resolveStatusSelection(["pool-a", "pool-b"], "pool-b", null).controlTargetId, null);
+  assert.equal(resolveStatusSelection(["pool-a"], "pool-a", null).controlTargetId, null);
+});
+
 test("disappearing units clear authority even when the remaining unit opens automatically", () => {
   assert.deepEqual(resolveStatusSelection(["pool-b"], "pool-a", "pool-a"), { poolId: "pool-b", controlTargetId: null, changed: true });
   assert.deepEqual(resolveStatusSelection(["pool-b", "pool-c"], "pool-a", "pool-a"), { poolId: null, controlTargetId: null, changed: true });

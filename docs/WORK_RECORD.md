@@ -2,7 +2,11 @@
 
 Last updated: November 6, 2026. This is the canonical status and acceptance record.
 
-## Latest accepted packet: device-focused Dashboard, statistics and MCP boundaries
+## Latest checkpoint: v1.0 quality audit and release preparation
+
+The user requested a full application quality audit after the Usage/Volumes/indicator and offline spare-unit work, removal of temporary/development-facing text, and preparation for v1.0. Source remediation and independent reviews are complete. The 24-lane suite passes, optimized Intel/ARM64 local packages build, and read-only home-Mac observations cover the final interface. Public v1.0 release remains blocked by signing/notarization, dependency clearance, additional hardware and accessibility QA, and the unresolved legacy loopback-source trust decision. Version remains `0.2.0`; no public binary/tag was created. See [V1_READINESS.md](V1_READINESS.md) for findings, acceptance evidence and open gates, and the final audit record below for exact paths and receipts.
+
+## Accepted Dashboard, statistics and MCP boundaries
 
 The user requested a closer reconstruction of the original Dashboard's screen organization, component selection, enclosure graphics, capacity display, and settings locations, with new functionality kept accessible alongside it. The original local XAML resources, English labels, and artwork inventory provide layout evidence; they do not establish full functional parity. This packet replaces the generic status-card layout with a component inspector and selectable drive bays, restores Capacity/Usage and original Tools/General settings placement, and places additional diagnostics under Advanced. Unknown values and unsupported operations must remain explicitly unavailable. Runtime UI and device checks target the home Mac; local checks remain offline software validation.
 
@@ -10,7 +14,7 @@ The MCP assessment covers the current desktop source and its host/service bounda
 
 The Codex Security managed scan (`7bef81a8-678a-43f7-a184-a3773956952c`) could not save canonical artifacts. Its tool repeatedly returned `Scan output parent must not be group- or world-writable without the sticky bit.` The authoritative output path has a `/Volumes/Storage` ancestor with mode `0775`; all scan descendants were private. No existing-scan relocation tool was available. Root did not change volume permissions, weaken plugin checks, or write replacement canonical artifacts. The scan was marked failed for this confirmed storage blocker; no sealed report or successful scan completion is claimed. The original candidate, generated model, and source validation were saved only through the tool's temporary artifact storage and may be cleaned by the OS. This is a source-backed assessment with an incomplete managed publication lane, not a clean security certification. No runtime exploit was performed. Token usage was not returned.
 
-The latest desktop source passes all 24 software-check lanes, including 42 desktop backend tests, nine statistics tests, six Status-selection tests, six drive-indicator tests, five storage-presentation tests, 40 portable core tests, seven probe tests and the Python suites. The native icon lane checks PNG rendering, fixed dimensions, output bounds and synthetic registry/path binding. Intel and ARM64 preview packages pass packaging checks. Ten SDK MCP tool calls pass against the final private Intel preview on the home Mac. The current runtime observations and remaining UI-input verification are recorded below. The original driver/service, Finder geometry, driver activation, filesystem mounts, live light/power tests and disk-pack mutation remain outside this packet.
+The preceding Usage/Volumes checkpoint passed all 24 software-check lanes, including 42 desktop backend tests, nine statistics tests, six Status-selection tests, six drive-indicator tests, five storage-presentation tests, 40 portable core tests, seven probe tests and the Python suites. The native icon lane checks PNG rendering, fixed dimensions, output bounds and synthetic registry/path binding. Intel and ARM64 preview packages pass packaging checks. Ten SDK MCP tool calls pass against the final private Intel preview on the home Mac. The current runtime observations and remaining UI-input verification are recorded below. The original driver/service, Finder geometry, driver activation, filesystem mounts, live light/power tests and disk-pack mutation remain outside this packet.
 
 The user subsequently accepted optional MCP and requested more elaborate statistics plus a firmware-grounded feature assessment and an explanation of macOS software RAID. Extend Statistics with actual time-range selection, protected/free/OS-used trends, utilization and signed changes, observation gaps, reported drive capacities and SSD life, and session-scoped activity. Byte arithmetic must remain exact, missing observations must not become zero or an outage, and growth rates must be described as observed averages rather than forecasts. Additional telemetry command names are research leads until their payloads, units and model capability are recovered. Neither original firmware nor the BeyondRAID on-disk format has been modified. No AppleRAID conversion, member-disk passthrough, formatting or array migration is authorized by this assessment. The follow-up question about connecting two matching Drobos is an architecture assessment: Thunderbolt chaining is connectivity, while a potential host-managed mirror or stripe would retain two separate onboard BeyondRAID pools. OpenDrobo has not implemented or validated this arrangement; virtual-member ancestry, mount guards, thin-provisioned capacity and failure recovery remain open. See [firmware capabilities](FIRMWARE_CAPABILITIES.md).
 
@@ -393,3 +397,72 @@ scripts/check_volume_icons.py
 scripts/spare_unit_lab.py
 tests/test_spare_unit_lab.py
 ```
+
+## v1.0 application quality audit and release preparation
+
+Source baseline: `ee9f9fd68ab68f20372d4e91973fc41e7c0f1cfc`, `main`. The user authorized the full application quality audit, removal of temporary/development-facing product text, release preparation and continued source publication. This section records the reviewed source changes; commit and public-main equality are verified at publication closeout. Public v1.0 remains blocked; version stays `0.2.0` and no binary release or tag was published. [V1_READINESS.md](V1_READINESS.md) records resolved findings and remaining gates; [RELEASING.md](RELEASING.md) supplies concrete packaging/distribution steps.
+
+The interface removes the development banner and dummy preferences, preserves missing/error states, adds named route focus/skip navigation and bounded overflow, and keeps display selection separate from explicit Tools authority. Duplicate-model labels remain distinct across views. Rust service framing now supports the existing 32-unit bound without prematurely truncating snapshots. Native scope/capture/rebind tests and control reply-failure tests exercise refusal paths without hardware retries. Inactive FSKit rejects nonintegral block geometry; inactive SCSI inquiry stops inventing serial numbers, and timer/queue cancellation failure retains ownership for explicit retry. Hardware activation gates remain closed.
+
+Default packages now use optimized release code, generated artwork and no inactive filesystem extension. Debug, local vendor-artwork and research variants are explicitly labeled local. Release tooling checks version parity, native/cross target output paths, architecture and launch floors, with explicit Developer ID/stapler/Gatekeeper gates. Local structural mode cannot establish distribution readiness. Deterministic dependency inventory preserves unknown/conflicting licenses and safe bounded metadata; it does not claim human clearance or exact shipping contents. Rust 1.98.0 and Node 24.22.1 are pinned; the declared Rust 1.85 minimum was not separately validated.
+
+Validation and artifacts:
+
+- `make check`: **24/24 lanes PASS**, including **58 Python, 49 desktop backend, 40 core, seven probe and 28 frontend behavior tests**. Frontend type/build, formatting, native volume icons, wire/native and inactive FSKit checks passed. DriverKit SDK/IIG/link and eight ASAN/UBSan suites passed separately after native fixes. `git diff --check` passed before publication.
+- Optimized Intel and ARM64 generated-artwork packages and the private-artwork Intel home package all built successfully. The 105 recorded app/build input hashes were unchanged across final validation. Local structural inspections passed every applicable structural gate; Developer ID, notarization/stapling and Gatekeeper distribution gates remain false. There were zero available Developer ID Application identities in the local keychain. No signing credentials or notarization account were configured or used.
+- Generated-artwork Intel archive SHA-256: `42ae4701d8b1aa2ed15d2f9c2e49e962de8aa9bc925fb5edb8c75683bf782c21`.
+- Generated-artwork ARM64 archive SHA-256: `48b5bb839b332fba56ab36e4859651b975330e5d102b523403a15fbe7f0bbbe7`.
+- Private-artwork Intel archive SHA-256: `8aeb2dc64398bccf9278fa4cb6482c1148d753b780d82cefafb2e622c85695e2`.
+- Both Intel candidates passed all eight bounded read-only CLI modes on the home Mac. Final private candidate passed all ten SDK MCP tools; one pool, two HFS+ volumes, six slots and native icon/enclosure binding remained correct. Power operations stayed disabled while volumes were mounted. The final receipt retained 76 actual history observations.
+- Computer Use launched the generated-artwork Intel candidate and inspected all 14 pages. Single-unit Status selection, exact `Drobo 5D - TB` label, five reported green bay indicators, separate protected/OS/raw accounting, native volume rows and historical charts were visibly correct. The window was resized to 860 × 640; Capacity/Usage and Volumes stacked and scrolled vertically in the observed states. Visible keyboard focus and skip link were observed. Full keyboard/VoiceOver, accessibility preferences, measured performance, live disconnect/fault transitions and multiple physical enclosures remain unverified. Remote input was occasionally unreliable; observations are not claims of flawless automation or exhaustive flow coverage.
+- Final private preview was launched through Finder and left on automatically selected Status with five green bay indicators: `/Users/jeff/Applications/OpenDroboTrials/20261106-8aeb2dc64398/OpenDrobo.app`, PID `99264`. Read-only process metadata confirmed exactly one OpenDrobo GUI process and original DDService PID `375` unchanged. No SSH/AppleScript GUI fallback was used.
+
+Independent reviews returned PASS after source fixes: `v1_interface_audit` (`gpt_ui_review`), `v1_backend_audit` and `v1_native_audit` (`gpt_reviewer`), and `v1_release_audit` (`gpt_reviewer`). Bounded producers were `native_volume_identity`, `v1_backend_fixes` and `v1_release_builder` (`gpt_worker`), with root producing/integrating residual UI, native, release and documentation fixes. Roles use OpenAI and are configured as `gpt-5.6-terra`; runtime model IDs are not exposed. Root is the configured Codex controller; its runtime model identifier is likewise unavailable. No GLM, Spark, retired role or Mac-mini model was used. Reviewers' standalone frontend check encountered the wrong-architecture TypeScript dependency; root's pinned frontend validator passed. Final read-only documentation/evidence review by `v1_release_audit` identified a premature source-publication description; it was corrected to separate reviewed source from commit/public-main verification. The reviewer also requested explicit cross-target standard-library/toolchain provisioning guidance; the release guide now supplies it. Final documentation/evidence review returned PASS with no remaining actionable P1/P2/P3 findings.
+
+Dependency inventory contains 518 locked components, 347 declared licenses and 171 unknown. A complete OSV query of 515 third-party public coordinates matched `glib@0.18.5` (RUSTSEC-2024-0429/GHSA-wrw7-89jp-8q8g) and `proc-macro-error@1.0.4` (RUSTSEC-2024-0370, unmaintained). Offline target-specific trees selected neither for either macOS target in the inspected desktop dependency graph; an all-target tree could not complete from cache. Future affected platform enablement must resolve these matches. License/shipping clearance and full BOM schema validation remain open. The existing low-severity/high-confidence CWE-345 loopback observation-source authenticity finding remains unresolved; disclosure is not remediation. The failed managed security report remains failed; no clean security certificate is claimed.
+
+Receipts are ignored under `artifacts/reports/v1-audit/`, with native details in `artifacts/reports/v1-driverkit-check.log` and `v1-fskit-check.log`. Only source/docs are published. Vendor artwork, firmware/binaries, host identifiers/captures and package bytes remain local. No light/brightness/power command, driver installation/activation, FSKit mount, geometry change, firmware/array operation, sharing/ACL change or disk-pack write occurred. Original driver dependency and Finder reporting remain unchanged. No unrelated dirt was present at startup.
+
+Next accepted action is completion of the explicit release gates: Developer ID/notarization, dependency clearance, read-only Apple-silicon device proof, full accessibility/QA and the separately scoped spare-unit management plan. Replacement-driver activation, Finder geometry and BeyondRAID reconstruction require independent future packets, not a release-label change.
+
+Exact changed source/documentation paths:
+
+```text
+.node-version
+README.md
+desktop/src-tauri/src/controls.rs
+desktop/src-tauri/src/main.rs
+desktop/src-tauri/src/native.rs
+desktop/src-tauri/src/service.rs
+desktop/src-tauri/src/updates.rs
+desktop/src/main.ts
+desktop/src/status_selection.ts
+desktop/src/styles.css
+desktop/tests/status_selection.test.mjs
+desktop/tests/storage_presentation.test.mjs
+docs/CAPACITY_REPORTING.md
+docs/DEVELOPER_GUIDE.md
+docs/MANAGEMENT_FEATURES.md
+docs/RELEASING.md
+docs/V1_READINESS.md
+docs/WORK_RECORD.md
+platform/macos/driverkit/AsyncSourceClose.h
+platform/macos/driverkit/OpenDroboSCSIController.cpp
+platform/macos/driverkit/ScsiResponseChecks.c
+platform/macos/driverkit/ScsiResponses.c
+platform/macos/driverkit/ScsiResponses.h
+platform/macos/driverkit/SourceCloseChecks.cpp
+platform/macos/fskit/Checks/main.swift
+platform/macos/fskit/OpenDroboFS.swift
+rust-toolchain.toml
+scripts/build_desktop.py
+scripts/check_driverkit.py
+scripts/dependency_inventory.py
+scripts/release_metadata.py
+scripts/release_preflight.py
+tests/test_dependency_inventory.py
+tests/test_release_metadata.py
+tests/test_release_preflight.py
+```
+
+Continuation: start in this repository with `git status --short --branch`, `git rev-parse HEAD` and `git log -1 --oneline`; read `docs/WORK_RECORD.md`, `docs/V1_READINESS.md`, `docs/RELEASING.md`, then `docs/SPARE_UNIT_LAB.md`. Identify the current reviewed checkpoint from Git and this audit record; local candidates are ad-hoc, not public releases. Active scope is the remaining recorded v1.0 gates. Keep home production pack, DDService ownership, driver/FSKit activation, Finder geometry and all destructive operations unchanged. Run only validators affected by a new accepted change; use final audit receipts and this ledger for existing evidence.

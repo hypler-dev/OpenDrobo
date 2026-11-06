@@ -288,7 +288,7 @@ fn get_app_info() -> AppInfo {
         mcp_command_path: std::env::current_exe()
             .ok()
             .and_then(|path| path.to_str().map(str::to_owned)),
-        message: "Development preview with read-only monitoring and explicit GUI device controls. Driver replacement and Finder validation remain pending.",
+        message: "Read-only storage monitoring with explicit device controls. The original Drobo driver is required; Finder capacity reporting is unchanged.",
     }
 }
 

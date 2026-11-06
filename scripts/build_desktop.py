@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Package a local macOS desktop preview with an optional inactive FSKit extension."""
+"""Package a macOS app; public-default builds exclude research and local assets."""
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import platform
@@ -17,6 +16,7 @@ import zlib
 from pathlib import Path
 
 from desktop_tools import ROOT, environment, run
+from release_metadata import MetadataError, artifact_filename, artifact_manifest, desktop_metadata, sha256_file
 
 
 SUPPORTED_TARGETS = ("aarch64-apple-darwin", "x86_64-apple-darwin")
@@ -150,12 +150,49 @@ def prepare_artwork(env: dict[str, str]) -> None:
         (destination / front.name).write_bytes(data)
 
 
+def clear_local_artwork() -> None:
+    """Ensure a prior private-artwork build cannot affect the public-default build."""
+    destination = ROOT / "desktop/public/local-artwork"
+    if destination.exists():
+        shutil.rmtree(destination)
+
+
+def signing_arguments(identity: str, *, runtime: bool) -> list[str]:
+    arguments = ["codesign", "--force", "--sign", identity]
+    if runtime:
+        arguments.extend(("--options", "runtime", "--timestamp"))
+    return arguments
+
+
+def tauri_build_command(*, debug: bool, explicit_target: str | None) -> list[str]:
+    """Keep production release profile default testable without invoking Tauri."""
+    command = ["npm", "run", "tauri", "--", "build", "--bundles", "app"]
+    if debug:
+        command.append("--debug")
+    if explicit_target:
+        command.extend(("--target", explicit_target))
+    return command
+
+
+def tauri_target(target: str, native: str) -> str | None:
+    """Native builds use the active compiler's built-in target, including SDK toolchains."""
+    return None if target == native else target
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target", choices=SUPPORTED_TARGETS,
                         help="macOS Rust target; defaults to this Mac's native target")
     parser.add_argument("--without-fskit", action="store_true",
-                        help="omit the ARM64 macOS 26 FSKit research extension")
+                        help="compatibility alias: omit the FSKit research extension (default)")
+    parser.add_argument("--with-fskit-research", action="store_true",
+                        help="bundle inactive ARM64/macOS 26 FSKit research extension")
+    parser.add_argument("--local-artwork", action="store_true",
+                        help="allow ignored local vendor artwork for a private build")
+    parser.add_argument("--debug", action="store_true",
+                        help="build a clearly named local debug artifact")
+    parser.add_argument("--signing-identity",
+                        help="explicit Developer ID Application identity; never selected automatically")
     parser.add_argument("--output", type=Path, default=ROOT / "dist",
                         help="directory receiving OpenDrobo.app and its local archive")
     args = parser.parse_args()
@@ -163,15 +200,25 @@ def main() -> int:
         print("This packaging helper builds the macOS/FSKit preview. Use the Tauri CLI for other hosts.", file=sys.stderr)
         return 2
 
+    if args.without_fskit and args.with_fskit_research:
+        parser.error("--without-fskit conflicts with --with-fskit-research")
+    if args.signing_identity and not args.signing_identity.startswith("Developer ID Application:"):
+        parser.error("--signing-identity must be an explicit Developer ID Application identity")
+    try:
+        release = desktop_metadata()
+    except MetadataError as error:
+        print(f"Desktop metadata error: {error}", file=sys.stderr)
+        return 2
+
     native = native_target()
     if native is None:
         print(f"Unsupported native macOS architecture: {platform.machine()}", file=sys.stderr)
         return 2
     target = args.target or native
-    include_fskit = not args.without_fskit
+    include_fskit = args.with_fskit_research
     if include_fskit and (target != native or target != "aarch64-apple-darwin"):
         print("FSKit preview requires the native aarch64-apple-darwin target. "
-              "Use --without-fskit for an Intel or cross-target shared-UI preview.", file=sys.stderr)
+              "Use the default app build for public-compatible output.", file=sys.stderr)
         return 2
 
     env = environment()
@@ -180,12 +227,15 @@ def main() -> int:
     if include_fskit:
         run(["cargo", "build", "--locked", "-p", "opendrobo-core"], env=environment("cargo-target"))
         run([sys.executable, "scripts/build_fskit.py"], env=env)
-    prepare_artwork(env)
-    tauri_command = ["npm", "run", "tauri", "--", "build", "--debug", "--bundles", "app"]
-    if args.target:
-        tauri_command += ["--target", target]
+    if args.local_artwork:
+        prepare_artwork(env)
+    else:
+        clear_local_artwork()
+    build_target = tauri_target(target, native)
+    tauri_command = tauri_build_command(debug=args.debug, explicit_target=build_target)
     run(tauri_command, env=env, cwd=ROOT / "desktop")
-    target_path = Path(target) / "debug" if args.target else Path("debug")
+    profile = "debug" if args.debug else "release"
+    target_path = Path(build_target) / profile if build_target else Path(profile)
     source = ROOT / "artifacts/desktop-target" / target_path / "bundle/macos/OpenDrobo.app"
     app = output / "OpenDrobo.app"
     if app.exists():
@@ -193,45 +243,64 @@ def main() -> int:
     output.mkdir(parents=True, exist_ok=True)
     shutil.copytree(source, app, symlinks=True)
     extension = app / "Contents/Extensions/OpenDroboFS.appex"
+    signing_identity = args.signing_identity or "-"
+    distribution_signing = args.signing_identity is not None
     if include_fskit:
         extension.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(ROOT / "dist/OpenDroboFS.appex", extension, symlinks=True)
-        run(["codesign", "--force", "--sign", "-", "--entitlements",
+        run(signing_arguments(signing_identity, runtime=distribution_signing) + ["--entitlements",
              ROOT / "platform/macos/fskit/OpenDroboFS.entitlements", extension], env=env)
     elif extension.exists():
         shutil.rmtree(extension)
     resources = app / "Contents/Resources"
     resources.mkdir(exist_ok=True)
-    original_icon = ROOT / "artifacts/artwork/DroboOriginalApp.icns"
-    icon = artwork_bytes(original_icon, "icns")
-    if icon is not None:
-        (resources / original_icon.name).write_bytes(icon)
-        info_path = app / "Contents/Info.plist"
+    info_path = app / "Contents/Info.plist"
+    if include_fskit:
         info = plistlib.loads(info_path.read_bytes())
-        info["CFBundleIconFile"] = original_icon.name
+        # This artifact carries a macOS-26-only extension. Keep its app launch gate explicit.
+        info["LSMinimumSystemVersion"] = "26.0"
         info_path.write_bytes(plistlib.dumps(info))
+    if args.local_artwork:
+        original_icon = ROOT / "artifacts/artwork/DroboOriginalApp.icns"
+        icon = artwork_bytes(original_icon, "icns")
+        if icon is not None:
+            (resources / original_icon.name).write_bytes(icon)
+            info = plistlib.loads(info_path.read_bytes())
+            info["CFBundleIconFile"] = original_icon.name
+            info_path.write_bytes(plistlib.dumps(info))
     metadata = {
-        "version": "0.2.0",
-        "mode": "development preview; read-only monitoring and explicit GUI controls; no driver replacement or mount activation",
+        "version": release["version"],
+        "version_sources": release["versions"],
+        "build_profile": profile,
+        "mode": "local build; read-only monitoring and explicit GUI controls; no driver replacement or mount activation",
         "architecture": target_architecture(target),
         "target": target,
-        "minimum_macos": "14.0",
-        "filesystem_extension": "bundled, not installed or activated" if include_fskit else "not bundled",
+        "minimum_macos": "26.0" if include_fskit else release["minimum_macos"],
+        "shared_app_minimum_macos": release["minimum_macos"],
+        "fskit_research": include_fskit,
+        "filesystem_extension": "research bundle, not installed or activated" if include_fskit else "not bundled",
+        "artwork_source": "local-vendor" if args.local_artwork else "generated-fallback",
+        "signing_identity": args.signing_identity or "ad-hoc",
+        "distributionReady": False,
         "repository": "https://github.com/hypler-dev/OpenDrobo",
     }
     (resources / "BUILD_INFO.json").write_text(json.dumps(metadata, indent=2) + "\n")
-    run(["codesign", "--force", "--sign", "-", app], env=env)
+    run(signing_arguments(signing_identity, runtime=distribution_signing) + [app], env=env)
     run(["codesign", "--verify", "--deep", "--strict", app], env=env)
-    archive = output / f"OpenDrobo-0.2.0-preview-macos-{target_architecture(target)}.zip"
+    local_artifact = not distribution_signing or args.debug or include_fskit or args.local_artwork
+    archive = output / artifact_filename(str(release["version"]), target_architecture(target),
+                                         debug=args.debug, fskit_research=include_fskit,
+                                         local=local_artifact)
     if archive.exists():
         archive.unlink()
     run(["ditto", "-c", "-k", "--keepParent", app, archive], env=env)
-    with archive.open("rb") as source_file:
-        digest = hashlib.file_digest(source_file, "sha256").hexdigest()
+    digest = sha256_file(archive)
     receipt = {**metadata, "app": str(app), "archive": str(archive), "sha256": digest}
     report = ROOT / "artifacts/reports/desktop-build.json"
     report.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(json.dumps(receipt, indent=2) + "\n")
+    manifest = artifact_manifest([archive], output)
+    (output / "OpenDrobo-artifacts.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     print(f"PASS: {app}\nSHA-256: {digest}")
     return 0
 

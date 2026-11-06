@@ -135,6 +135,9 @@ html, body, #app { block-size: 100%; overflow: hidden; }
 .settings-card { max-width: 760px; }.settings-card h3 { margin: 0; }.disabled-toggle { opacity: .72; }.disabled-toggle input { accent-color: #81dff4; }
 .device-card .device-artwork { grid-row: span 3; }.device-card > .status-copy { margin: 0; }.device-card .action-button { grid-column: auto; }
 :focus-visible { outline: 2px solid #81eaff; outline-offset: 3px; }
+.skip-link { position: fixed; z-index: 100; left: 12px; top: 12px; transform: translateY(-160%); padding: 9px 12px; border-radius: 7px; color: #051018; background: #a9f2ff; font-weight: 700; }.skip-link:focus { transform: translateY(0); }
+.advanced-table-scroll { max-width: 100%; overflow-x: auto; }
+.led-settings input.is-unset { opacity: .58; }
 @media (max-width: 900px) { .status-workspace, .capacity-workspace { grid-template-columns: 1fr; }.capacity-donut-large svg { width: 200px; height: 200px; }.cache-summary { border-left: 0; border-top: 1px solid rgba(225,240,255,.15); } }
 @media (max-width: 640px) { .app-shell { grid-template-rows: auto 1px minmax(0, 1fr); }.shell-body { display: flex; flex-direction: column; min-height: 0; }.sidebar { flex: 0 0 auto; overflow-x: auto; overflow-y: hidden; }.content { flex: 1 1 auto; min-height: 0; overflow: auto; }.nav-advanced { border-top: 0; padding-top: 0; margin-top: 0; }.nav-advanced > summary { display: none; }.nav-advanced { display: contents; }.advanced-nav-list { display: flex; margin: 0; gap: 4px; }.tool-row { grid-template-columns: 1fr; }.capacity-legend { grid-template-columns: 1fr; } }
 

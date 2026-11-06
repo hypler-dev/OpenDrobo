@@ -24,7 +24,7 @@ Capacity → Usage shows protected allocation, protected free space and usable t
 
 ## Original-service observer
 
-`desktop/src-tauri/src/service.rs` uses a fixed read-only subscription to `127.0.0.1:4502`. It validates frame identity, version, event type, reserved byte, declared lengths, strict XML and complete advertised device membership. Bounds are 16 frames, 512 KiB per XML record, 2 MiB per subscription and a 35-second absolute deadline. Internal ESA identifiers correlate LUNs to a shared pool; UI/MCP identifiers are SHA-256 pseudonyms. These identifiers are not authentication credentials.
+`desktop/src-tauri/src/service.rs` uses a fixed read-only subscription to `127.0.0.1:4502`. It validates frame identity, version, event type, reserved byte, declared lengths, strict XML and complete advertised device membership. Bounds are 64 frames, 512 KiB per XML record, 2 MiB per subscription and a 35-second absolute deadline. Internal ESA identifiers correlate LUNs to a shared pool; UI/MCP identifiers are SHA-256 pseudonyms. These identifiers are not authentication credentials.
 
 The GUI pauses five seconds between bounded service reads and reuses successful observations for at most five seconds in the same process. A full original-service update can require up to 35 seconds; the displayed observation time is preserved. A fresh observation means a recently received service cache, not an independently timed hardware measurement. Read failures retain old data as stale. Confirmed service removal and unavailability remain different conditions. Device events record changes seen by this process; they do not recover the device's historical onboard event log.
 
