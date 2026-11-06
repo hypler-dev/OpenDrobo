@@ -41,6 +41,8 @@ MCP has no per-tool authorization layer. Security boundary is local process owne
 
 The original macOS observer connects to plain `127.0.0.1:4502` and validates bounded XML, but does not authenticate the peer. If the original DDService is absent, a lower-privilege local process could bind that port and provide false pool/readings, which could poison bounded local history. The original running listener cannot be displaced. This is one supported low-severity, high-confidence boundary gap in static review. It does not demonstrate MCP control execution, privilege escalation, arbitrary file/disk writes, or remote attack.
 
+Read-only host research on November 6 found that ordinary application permissions could inspect the process executable path and kernel socket-table PID text, but could not inspect the root-owned service's descriptors or BSD process information (`EPERM`). This does not establish a portable or race-free peer-verification mechanism. No privileged helper was installed, no service was restarted, and no authentication claim was added.
+
 `sourceTrust` makes this limitation visible; it is not an authentication fix. Before any autonomous action or broader trust claim, add authenticated local IPC with peer identity and an attestation/authorization decision for the service. Do not treat a binary hash, response bounds, or a client-side label as peer authentication. No dependency-CVE or runtime-exploit claim follows from this assessment.
 
 ## Operational limits

@@ -17,6 +17,7 @@ from pathlib import Path
 
 from desktop_tools import ROOT, environment, run
 from release_metadata import MetadataError, artifact_filename, artifact_manifest, desktop_metadata, sha256_file
+from release_notices import read_notice_bundle
 
 
 SUPPORTED_TARGETS = ("aarch64-apple-darwin", "x86_64-apple-darwin")
@@ -193,6 +194,8 @@ def main() -> int:
                         help="build a clearly named local debug artifact")
     parser.add_argument("--signing-identity",
                         help="explicit Developer ID Application identity; never selected automatically")
+    parser.add_argument("--third-party-notices", type=Path,
+                        help="explicit generated third-party notice bundle for these exact locked inputs")
     parser.add_argument("--output", type=Path, default=ROOT / "dist",
                         help="directory receiving OpenDrobo.app and its local archive")
     args = parser.parse_args()
@@ -210,11 +213,20 @@ def main() -> int:
         print(f"Desktop metadata error: {error}", file=sys.stderr)
         return 2
 
+    try:
+        notice_metadata, notice_files = read_notice_bundle(args.third_party_notices)
+    except (OSError, ValueError) as error:
+        parser.error(f"Third-party notices: {error}")
+    if args.signing_identity and not notice_metadata["complete"]:
+        parser.error("Developer ID packaging requires a complete, current third-party notice bundle; legal review remains separate")
+
     native = native_target()
     if native is None:
         print(f"Unsupported native macOS architecture: {platform.machine()}", file=sys.stderr)
         return 2
     target = args.target or native
+    if notice_metadata["bundled"] and target not in notice_metadata.get("targets", []):
+        parser.error("Third-party notice graph does not cover the requested architecture")
     include_fskit = args.with_fskit_research
     if include_fskit and (target != native or target != "aarch64-apple-darwin"):
         print("FSKit preview requires the native aarch64-apple-darwin target. "
@@ -254,6 +266,13 @@ def main() -> int:
         shutil.rmtree(extension)
     resources = app / "Contents/Resources"
     resources.mkdir(exist_ok=True)
+    (resources / "LICENSE.txt").write_bytes((ROOT / "LICENSE").read_bytes())
+    if notice_files:
+        licenses = resources / "licenses"
+        licenses.mkdir(exist_ok=False)
+        for name, data in notice_files.items():
+            with (licenses / name).open("xb") as stream:
+                stream.write(data)
     info_path = app / "Contents/Info.plist"
     if include_fskit:
         info = plistlib.loads(info_path.read_bytes())
@@ -279,7 +298,8 @@ def main() -> int:
         "shared_app_minimum_macos": release["minimum_macos"],
         "fskit_research": include_fskit,
         "filesystem_extension": "research bundle, not installed or activated" if include_fskit else "not bundled",
-        "artwork_source": "local-vendor" if args.local_artwork else "generated-fallback",
+        "artwork_source": "local-vendor" if args.local_artwork else "opendrobo-rendered-v2",
+        "third_party_notices": notice_metadata,
         "signing_identity": args.signing_identity or "ad-hoc",
         "distributionReady": False,
         "repository": "https://github.com/hypler-dev/OpenDrobo",

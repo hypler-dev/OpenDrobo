@@ -2,7 +2,15 @@
 
 Last updated: November 6, 2026. This is the canonical status and acceptance record.
 
-## Latest checkpoint: v1.0 quality audit and release preparation
+## Latest accepted follow-up: remaining v1.0 gates and OpenDrobo artwork
+
+The user authorized continuing all presently actionable v1.0 blockers, researching license/rights questions, and documenting what they must provide for signing and hardware testing. They confirmed no Apple Developer membership yet and a spare enclosure of the same 5D model. Newly rendered product art must preserve recognizable 5D hardware, the approved three-quarter angle, green bay lights and blue lower-row lights; decorative lights do not become active-device telemetry. Adding “Open” or changing an angle is not evidence of rights clearance.
+
+Current source scope: exact target-selected dependency/notice evidence and schema validation; newly rendered artwork/icons and safe UI integration; bounded legacy-service ownership hardening only where verified host APIs can support it; signing/operator and hardware acceptance documentation. Root retains security design, integration, validators and publication. Bounded workers own disjoint dependency and UI files; fresh independent reviews follow. No developer account, paid enrollment, credentials, driver activation, DDService restart, production-pack control or destructive hardware test is authorized by this follow-up. The working Intel app continues to depend on the original driver; the compiled replacement remains inactive research.
+
+The baseline is `170d8ad1273ec6c4f1b8fb26165ba9501d087d5e` on clean `main`. Verified findings, changed paths, validation and remaining user-dependent gates are recorded in the final follow-up section below. Source commit/public-main equality is checked at publication closeout.
+
+## Previous checkpoint: v1.0 quality audit and release preparation
 
 The user requested a full application quality audit after the Usage/Volumes/indicator and offline spare-unit work, removal of temporary/development-facing text, and preparation for v1.0. Source remediation and independent reviews are complete. The 24-lane suite passes, optimized Intel/ARM64 local packages build, and read-only home-Mac observations cover the final interface. Public v1.0 release remains blocked by signing/notarization, dependency clearance, additional hardware and accessibility QA, and the unresolved legacy loopback-source trust decision. Version remains `0.2.0`; no public binary/tag was created. See [V1_READINESS.md](V1_READINESS.md) for findings, acceptance evidence and open gates, and the final audit record below for exact paths and receipts.
 
@@ -466,3 +474,81 @@ tests/test_release_preflight.py
 ```
 
 Continuation: start in this repository with `git status --short --branch`, `git rev-parse HEAD` and `git log -1 --oneline`; read `docs/WORK_RECORD.md`, `docs/V1_READINESS.md`, `docs/RELEASING.md`, then `docs/SPARE_UNIT_LAB.md`. Identify the current reviewed checkpoint from Git and this audit record; local candidates are ad-hoc, not public releases. Active scope is the remaining recorded v1.0 gates. Keep home production pack, DDService ownership, driver/FSKit activation, Finder geometry and all destructive operations unchanged. Run only validators affected by a new accepted change; use final audit receipts and this ledger for existing evidence.
+
+## v1.0 blocker follow-up: notices, artwork and owner handoffs
+
+Source baseline: `170d8ad1273ec6c4f1b8fb26165ba9501d087d5e`, clean `main`. The user authorized continuing actionable v1.0 gates and research, then requested newly rendered artwork recognizable as real Drobo hardware, retaining the approved three-quarter angle with green bay lights and blue lower lights. They confirmed a separate spare 5D and no Apple Developer membership. This section records reviewed source changes; commit and public-main equality are verified at closeout. Version remains `0.2.0`, and no public binary/tag is published.
+
+The new decorative lineup and application icon are AI-rendered images using recognizable 5D hardware references and OpenDrobo styling. The original redesign draft was replaced after the user's correction. Green/blue lights in those images are decorative only; the background is aria-hidden. The active Status and All Drobos graphics are independently authored code with five bay positions, left handles, decoded right indicators and neutral lower windows. Stale/unknown observations do not become healthy. Normal UI no longer loads extracted vendor artwork. The high-resolution icon master is outside the frontend public directory to avoid embedding an unused duplicate, and unused generated mobile icons were removed. New Mac/Windows icon sizes remain source assets; this does not add Windows device support.
+
+The notice collector now reads exact locked package archive bytes: Cargo SHA-256 against Cargo.lock and npm SHA-512 against package-lock. It checks identities and declaration agreement, bounded regular archive members, path safety, input hashes and fixed CLI inputs. It reproduces both default-feature macOS Cargo graphs through the pinned environment. Attribution-only NOTICE material cannot satisfy license-term coverage, including supplements. Supplements are immutable-commit/SHA-bound to verified archive VCS metadata and cannot replace local terms. No mutable extracted Cargo tree or node_modules content establishes notice provenance.
+
+Actual selected scope is 290 macOS/UI components with zero declaration mismatches, 492 collected notice documents and documentary terms coverage for 277 components. Thirteen entries need manual documentary review: selectors and twelve objc2-family packages. These are not findings of absent license grants. Plist's British-spelled LICENCE is collected correctly. The report retains `noticeReady: false` and `legalReviewRequired: true`. Five selected MPL-2.0 packages require a source-access/notice disposition; see the rights guide. The refreshed all-lock inventory has 518 components, 492 recognized license declarations and 26 collector-unresolved entries. It passes offline validation against saved official CycloneDX 1.6/SPDX/JSF schemas. All-lock discovery and selected target evidence remain separate; no dependency versions changed.
+
+Packaging includes the application's MIT license and supports an explicit checksum-bound third-party bundle. Developer ID packaging stops before build/signing when notices are absent or incomplete. Preflight verifies notice resource hashes, current lock/package bindings, exact target coverage and the application license; missing, partial, changed or wrong-target resources cannot pass distribution. These are documentary gates, not legal approval or proof of exact compiled contents. Current local packages deliberately include the partial report and remain distribution-blocked.
+
+Research and owner requirements are documented in `docs/RIGHTS_AND_DISTRIBUTION.md`, `docs/RELEASING.md` and `docs/HARDWARE_VALIDATION.md`. U.S. copyright duration and transfer rules do not make closure a public-domain grant. The cited USPTO-hosted bankruptcy filing/order supplies an IP-sale ownership lead without establishing the present owner of every Drobo right. Newly rendering hardware, adding “Open” and changing an angle do not establish blanket rights clearance. No rights-holder outreach was sent. Apple enrollment, the publishing identity, Developer ID/keychain setup and notarization remain owner-dependent; DriverKit entitlement/provisioning and activation are separate. The reported spare 5D is an appropriate initial target. The operator still must identify its disposable pack, the Apple-silicon test Mac/macOS and the cable/adapter chain; none of those test bindings has been verified. Other models need their own transport/firmware receipts; the B800fs Ethernet role and B800i administration-only USB distinction are documented from original vendor sources.
+
+Read-only home research confirmed that executable paths and kernel socket-table PID text were visible, while root-owned service descriptor/BSD-info queries returned EPERM. That did not establish a dependable production authentication route. No helper, service restart or weakened OS protection was introduced. The known low-severity/high-confidence CWE-345 status-source finding remains unresolved, and the failed managed-security publication lane remains failed. Optional MCP stays read-only with no MCP network listener. No security certification is claimed.
+
+Validation and exact candidate evidence:
+
+- `make check`: **24/24 lanes PASS**; **77 Python, 49 desktop backend, 40 portable core, seven probe and 28 frontend behavior tests**. The final 77-test Python suite passed again after the last test-only correction. Focused notice tests passed 10/10; focused release/notices tests passed 23/23. Native/DriverKit and inactive FSKit checks passed through the integrated suite. The ARM64 DriverKit executable exists, with hardware disabled and no activation.
+- Optimized Intel and ARM64 local packages passed build, signature-integrity and structural inspection. **112 app/package input hashes stayed unchanged** during validation. Expected distribution failures are ad-hoc identity, missing Developer ID/stapling/Gatekeeper proof and the thirteen incomplete documentary entries. No actual Developer ID signing or notarization submission occurred.
+- Intel archive SHA-256: `cdc6715ab2323dd0543437064ab85b3704ea6cec2bf47825e8d61f79d6d39fe6`.
+- ARM64 archive SHA-256: `1073fe7d454e505acd2d6ac7f50ef23875141e6ee4dde8e296584017e31667c5`.
+- The final home candidate is identified by the Intel archive hash above; its exact trial path and process identifiers remain in the ignored `home-final-processes.json` receipt. Eight read-only CLI modes and ten SDK MCP tools passed, retaining one enclosure/pool, two HFS+ volumes, six slots, native icons and actual history observations. Mounted power operations stayed disabled. Final process readback confirmed one GUI and the original DDService unchanged.
+- Computer Use launched the exact candidate through Finder. It showed the new icon/backdrop, single-unit auto-selection, five green reported bay lights, Drive 3 metadata after selection, unchanged protected/OS/raw accounting, tidy native volume rows and an unselected Tools control target. At 860 × 640, Volumes stacked without page-width overflow. The window was restored to 1120 × 800 and left on System Information. This is a scoped visual smoke, not a repetition of every page or full keyboard/VoiceOver/performance certification. No alternative GUI automation was used.
+
+Fresh independent `v1_brand_review` (`gpt_ui_review`) passed the source/assets after inspection and 28 frontend tests. Fresh `v1_notice_review` (`gpt_reviewer`) passed after archive/lock and npm-integrity binding, default-feature reproduction, NOTICE-versus-terms, CLI-override and refusal-test fixes. Fresh `v1_release_audit` (`gpt_reviewer`) passed the package resource/target gates and 23 focused tests. Producers were `v1_brand_integration` and `v1_dependency_clearance` (`gpt_worker`), with root owning architecture, legal/security judgment, package integration, docs, validation and host actions. The installed TOMLs were rechecked: all three GPT roles are configured as OpenAI `gpt-5.6-terra`; runtime model IDs are not exposed. Root's runtime model identifier and the built-in image generator's model identifier are not exposed. No GLM, Spark, retired role or Mac-mini model was used. Final documentation/evidence review by `v1_release_audit` returned PASS after clarifying pending hardware bindings and keeping the new private home path/process identifiers in ignored receipts.
+
+Private receipts are under `artifacts/reports/v1-followup/` and `artifacts/reports/v1-license-clearance/`. The latter includes actual `notices-v7/`, immutable upstream evidence, both original/refreshed schema receipts and a bounded service-identity feasibility summary. Public network reads were limited to locked dependency downloads, upstream licensing material, official documentation/schemas and isolated validation-tool installation; no application dependency was added or upgraded. Source/docs and newly rendered assets are the publication slice. Vendor files, private host captures and built packages remain ignored. No unrelated source dirt existed at startup.
+
+No production-pack command/write, brightness query/change, physical light/power action, firmware/array operation, driver install/activation, filesystem mount/geometry change, sharing/ACL change, Developer account enrollment, purchase or credential operation occurred. The original driver remains required; Finder reporting is unchanged. The independently compiled driver is still an inactive prototype, and new-macOS/Apple-silicon hardware support cannot be claimed from it. No public binary release/tag was created.
+
+Next owner actions: choose and enroll the publisher with Apple, then configure signing/notarization locally without sharing secrets; identify the spare 5D/pack and Apple-silicon Mac/OS/cable chain for the staged plan; complete the remaining terms/source-access review. Full accessibility/QA, legacy-source trust disposition and actual replacement-driver bring-up remain release gates.
+
+Exact changed source/documentation/art paths:
+
+```text
+desktop/public/brand/README.md
+desktop/public/brand/opendrobo-lineup-v2.png
+desktop/src-tauri/icons/128x128.png
+desktop/src-tauri/icons/128x128@2x.png
+desktop/src-tauri/icons/32x32.png
+desktop/src-tauri/icons/64x64.png
+desktop/src-tauri/icons/Square107x107Logo.png
+desktop/src-tauri/icons/Square142x142Logo.png
+desktop/src-tauri/icons/Square150x150Logo.png
+desktop/src-tauri/icons/Square284x284Logo.png
+desktop/src-tauri/icons/Square30x30Logo.png
+desktop/src-tauri/icons/Square310x310Logo.png
+desktop/src-tauri/icons/Square44x44Logo.png
+desktop/src-tauri/icons/Square71x71Logo.png
+desktop/src-tauri/icons/Square89x89Logo.png
+desktop/src-tauri/icons/StoreLogo.png
+desktop/src-tauri/icons/icon.icns
+desktop/src-tauri/icons/icon.ico
+desktop/src-tauri/icons/icon.png
+desktop/src-tauri/icons/source-v2.png
+desktop/src-tauri/icons/source.svg
+desktop/src/main.ts
+desktop/src/styles.css
+docs/DEVELOPER_GUIDE.md
+docs/HARDWARE_VALIDATION.md
+docs/MCP.md
+docs/RELEASING.md
+docs/RIGHTS_AND_DISTRIBUTION.md
+docs/THIRD_PARTY.md
+docs/V1_READINESS.md
+docs/WORK_RECORD.md
+scripts/build_desktop.py
+scripts/dependency_licenses.py
+scripts/release_notices.py
+scripts/release_preflight.py
+tests/test_dependency_licenses.py
+tests/test_release_notices.py
+tests/test_release_preflight.py
+```
+
+Continuation: start here with `git status --short --branch`, `git rev-parse HEAD` and `git log -1 --oneline`; read `docs/WORK_RECORD.md`, `docs/V1_READINESS.md`, `docs/RELEASING.md`, `docs/THIRD_PARTY.md`, then `docs/HARDWARE_VALIDATION.md` and the offline lab guide. Source is the reviewed follow-up identified by Git; home preview and both local packages remain ad-hoc/distribution-blocked. Active scope is the explicit remaining v1.0 gates. Preserve the home pack, DDService ownership, activation/geometry fences and separate destructive authority. Run focused checks only for new accepted changes, reuse unchanged evidence, and retain this ledger plus the named private receipts as the current status pointer.

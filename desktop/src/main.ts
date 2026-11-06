@@ -263,24 +263,23 @@ interface ControlResult {
   value?: number | null;
 }
 
-const sections: Array<{ id: Section; label: string; icon: string; artwork?: string; activeArtwork?: string }> = [
-  { id: "all", label: "All Drobos", icon: "▦", artwork: "DroboNav-all_devices.png", activeArtwork: "DroboNav-all_devicesA.png" },
-  { id: "status", label: "Status", icon: "♥", artwork: "DroboNav-status.png", activeArtwork: "DroboNav-statusA.png" },
-  { id: "capacity", label: "Capacity", icon: "▣", artwork: "DroboNav-capacity.png", activeArtwork: "DroboNav-capacityA.png" },
-  { id: "volumes", label: "Volumes", icon: "▤", artwork: "DroboNav-shares_volumes.png", activeArtwork: "DroboNav-shares_volumes_active.png" },
+const sections: Array<{ id: Section; label: string; icon: string }> = [
+  { id: "all", label: "All Drobos", icon: "▦" },
+  { id: "status", label: "Status", icon: "♥" },
+  { id: "capacity", label: "Capacity", icon: "▣" },
+  { id: "volumes", label: "Volumes", icon: "▤" },
   { id: "events", label: "Events", icon: "◉" },
   { id: "statistics", label: "Statistics", icon: "◒" },
   { id: "sharing", label: "Sharing", icon: "⇄" },
   { id: "console", label: "Console", icon: "›_" },
   { id: "mcp", label: "MCP", icon: "◇" },
   { id: "management", label: "Capabilities & limits", icon: "◌" },
-  { id: "tools", label: "Tools", icon: "⌘", artwork: "DroboNav-tools.png", activeArtwork: "DroboNav-toolsA.png" },
-  { id: "settings", label: "Drobo Settings", icon: "⚙", artwork: "DroboNav-settings.png", activeArtwork: "DroboNav-settingsA.png" },
-  { id: "preferences", label: "Dashboard Prefs", icon: "≡", artwork: "DroboNav-prefs.png", activeArtwork: "DroboNav-prefsA.png" },
-  { id: "help", label: "Help", icon: "?", artwork: "DroboNav-help.png", activeArtwork: "DroboNav-helpA.png" }
+  { id: "tools", label: "Tools", icon: "⌘" },
+  { id: "settings", label: "Drobo Settings", icon: "⚙" },
+  { id: "preferences", label: "Dashboard Prefs", icon: "≡" },
+  { id: "help", label: "Help", icon: "?" }
 ];
 
-const artwork = ["DroboMiniArtwork.png", "Drobo5DArtwork.png", "DroboProArtwork.png", "DroboB800Artwork.png"];
 const capacityMaxAgeMs = 30_000;
 const app = requiredElement("app");
 
@@ -438,22 +437,6 @@ function sidebar(): HTMLElement {
     button.setAttribute("aria-current", selectedSection === section.id ? "page" : "false");
     button.dataset.section = section.id;
     const icon = textElement("span", section.icon, "nav-icon");
-    const artworkName = selectedSection === section.id ? section.activeArtwork : section.artwork;
-    if (artworkName) {
-      const art = document.createElement("img");
-      art.className = "nav-art";
-      art.src = `/local-artwork/${artworkName}`;
-      art.alt = "";
-      art.addEventListener("load", () => {
-        const visible = navigationCanvas(art);
-        if (visible) {
-          art.replaceWith(visible);
-          icon.classList.add("has-art");
-        }
-      }, { once: true });
-      art.addEventListener("error", () => art.remove(), { once: true });
-      icon.append(art);
-    }
     const label = section.id === "sharing" ? (appInfo?.platform === "macos" ? "Mac Sharing" : "Host Sharing") : section.label;
     button.append(icon, textElement("span", label));
     button.addEventListener("click", () => selectSection(section.id));
@@ -496,78 +479,25 @@ function sidebar(): HTMLElement {
   return aside;
 }
 
-function navigationCanvas(image: HTMLImageElement): HTMLCanvasElement | null {
-  // Vendor navigation images have large transparent offsets. Fit the glyph,
-  // preserving the original local file and falling back if it cannot decode.
-  const canvas = document.createElement("canvas");
-  const width = image.naturalWidth;
-  const height = image.naturalHeight;
-  if (!width || !height || width > 512 || height > 512) return null;
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext("2d");
-  if (!context) return null;
-  try {
-    context.drawImage(image, 0, 0);
-    const pixels = context.getImageData(0, 0, width, height).data;
-    let left = width, top = height, right = -1, bottom = -1;
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        if (pixels[(y * width + x) * 4 + 3] === 0) continue;
-        left = Math.min(left, x); top = Math.min(top, y);
-        right = Math.max(right, x); bottom = Math.max(bottom, y);
-      }
-    }
-    if (right < left || bottom < top) return null;
-    canvas.width = right - left + 1;
-    canvas.height = bottom - top + 1;
-    context.drawImage(image, left, top, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
-    canvas.className = "nav-art";
-    canvas.setAttribute("aria-hidden", "true");
-    return canvas;
-  } catch {
-    return null;
-  }
-}
-
 function productLineup(): HTMLElement {
   const lineup = element("div", "lineup");
-  lineup.setAttribute("aria-label", "Faded Drobo systems illustration");
-  lineup.append(textElement("p", "DROBO SYSTEMS"));
-  const units = element("div", "units");
-  for (const [index, imageName] of artwork.entries()) {
-    const holder = element("div", `tower tower-${index + 1}`);
-    const image = document.createElement("img");
-    image.src = `/local-artwork/${imageName}`;
-    image.alt = "";
-    image.loading = "lazy";
-    image.addEventListener("error", () => {
-      image.remove();
-      holder.classList.add("tower-fallback");
-      holder.setAttribute("aria-hidden", "true");
-    }, { once: true });
-    holder.append(image);
-    units.append(holder);
-  }
-  lineup.append(units);
+  lineup.setAttribute("aria-label", "OpenDrobo storage-system illustration");
+  lineup.append(textElement("p", "OPENDROBO SYSTEMS"));
+  const image = document.createElement("img");
+  image.src = "/brand/opendrobo-lineup-v2.png";
+  image.alt = "";
+  image.loading = "lazy";
+  lineup.append(image);
   return lineup;
 }
 
 function beautyLineup(): HTMLElement {
   const lineup = element("div", "beauty-lineup");
   lineup.setAttribute("aria-hidden", "true");
-  for (const [index, imageName] of artwork.entries()) {
-    const holder = element("div", `beauty-unit beauty-unit-${index + 1}`);
-    const image = document.createElement("img");
-    image.src = `/local-artwork/${imageName}`;
-    image.alt = "";
-    image.addEventListener("error", () => {
-      image.remove();
-      holder.classList.add("beauty-fallback");
-    }, { once: true });
-    holder.append(image);
-    lineup.append(holder);
-  }
+  const image = document.createElement("img");
+  image.src = "/brand/opendrobo-lineup-v2.png";
+  image.alt = "";
+  lineup.append(image);
   return lineup;
 }
 
@@ -863,14 +793,10 @@ function enclosureArtwork(pool: PoolStatus, fresh: boolean): HTMLElement {
   const stage = element("div", "front-stage");
   const chassis = element("div", "front-chassis");
   chassis.setAttribute("aria-hidden", "true");
-  chassis.append(textElement("span", "OpenDrobo", "chassis-wordmark"));
-  const art = document.createElement("img");
-  art.src = "/local-artwork/Drobo5DFront.png";
-  art.alt = "";
-  art.className = "front-art";
-  art.addEventListener("load", () => stage.classList.add("has-original-art"), { once: true });
-  art.addEventListener("error", () => art.remove(), { once: true });
-  stage.append(chassis, art);
+  const capacityWindows = element("div", "front-capacity-windows");
+  for (let index = 0; index < 10; index += 1) capacityWindows.append(element("span"));
+  chassis.append(capacityWindows, textElement("span", "OpenDrobo", "chassis-wordmark"));
+  stage.append(chassis);
   const bays = element("div", "front-bays");
   const slots = dataSlots(pool);
   for (let index = 0; index < 5; index += 1) {
@@ -893,6 +819,9 @@ function enclosureArtwork(pool: PoolStatus, fresh: boolean): HTMLElement {
     bay.classList.toggle("bay-selected", selected);
     bay.setAttribute("aria-pressed", String(selected));
     bay.setAttribute("aria-label", `Drive ${index + 1}: ${indicator.label}; ${fresh && slot ? observationStateCopy(slot.driveState) : "current presence unknown"}${slot?.manufacturerModel ? `, ${slot.manufacturerModel}` : ""}`);
+    const handle = element("span", "front-bay-handle");
+    handle.setAttribute("aria-hidden", "true");
+    bay.append(handle);
     bay.addEventListener("keydown", (event) => {
       if (!slot || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return;
       event.preventDefault();
@@ -1333,23 +1262,25 @@ function deviceArtwork(pool: PoolStatus, fresh: boolean): SVGSVGElement {
   svg.setAttribute("viewBox", "0 0 220 280");
   svg.setAttribute("role", "img");
   svg.setAttribute("aria-label", `${pool.model || "Drobo"} enclosure. Bay lights follow the reported slot indicators.`);
-  const shape = (name: "rect" | "circle", attributes: Record<string, string>) => {
+  const shape = (name: "rect" | "circle" | "path", attributes: Record<string, string>) => {
     const node = document.createElementNS("http://www.w3.org/2000/svg", name);
     for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
     svg.append(node);
     return node;
   };
-  shape("rect", { x: "22", y: "8", width: "176", height: "242", rx: "18", class: "tower-body" });
-  shape("rect", { x: "32", y: "20", width: "156", height: "192", rx: "12", class: "tower-bezel" });
+  shape("rect", { x: "22", y: "8", width: "176", height: "242", rx: "20", class: "tower-body" });
+  shape("rect", { x: "32", y: "20", width: "156", height: "202", rx: "14", class: "tower-bezel" });
   if (isFiveD(pool)) {
     for (let index = 0; index < 5; index += 1) {
       const slot = pool.slots.find((candidate) => candidate.slot === index);
       const indicator = driveIndicator(slot?.rawStatus.mStatus, fresh);
-      shape("rect", { x: "42", y: String(31 + index * 34), width: "124", height: "25", rx: "4", class: "tower-bay" });
-      shape("rect", { x: "47", y: String(40 + index * 34), width: "17", height: "6", rx: "2", class: "tower-latch" });
+      const handleY = 36 + index * 34;
+      shape("rect", { x: "42", y: String(31 + index * 34), width: "124", height: "25", rx: "7", class: "tower-bay" });
+      shape("path", { d: `M52 ${handleY}h10v15H52c-4 0-6-3-6-7.5S48 ${handleY} 52 ${handleY}Z`, class: "tower-latch" });
       const light = shape("circle", { cx: "177", cy: String(44 + index * 34), r: "3", class: "tower-light bay-indicator" });
       light.dataset.led = indicator.kind;
     }
+    for (let index = 0; index < 10; index += 1) shape("rect", { x: String(47 + index * 12), y: "227", width: "8", height: "4", rx: "1.5", class: "tower-capacity-window" });
   } else {
     const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
     title.setAttribute("x", "110");
@@ -1359,34 +1290,12 @@ function deviceArtwork(pool: PoolStatus, fresh: boolean): SVGSVGElement {
     title.textContent = "Drobo";
     svg.append(title);
   }
-  shape("circle", { cx: "43", cy: "230", r: "4", class: fresh ? "tower-light active" : "tower-light" });
   return svg;
 }
 
 function unitPortrait(pool: PoolStatus, fresh: boolean): HTMLElement {
   const portrait = element("div", "unit-portrait");
-  const fallback = deviceArtwork(pool, fresh);
-  portrait.append(fallback);
-  if (isFiveD(pool)) {
-    const image = document.createElement("img");
-    image.src = "/local-artwork/Drobo5DFront.png";
-    image.alt = "Drobo 5D enclosure";
-    image.hidden = true;
-    image.addEventListener("load", () => { fallback.style.display = "none"; image.hidden = false; portrait.classList.add("has-unit-art"); }, { once: true });
-    image.addEventListener("error", () => image.remove(), { once: true });
-    const lights = element("div", "portrait-leds");
-    const descriptions: string[] = [];
-    for (let index = 0; index < 5; index += 1) {
-      const slot = pool.slots.find((candidate) => candidate.slot === index);
-      const indicator = driveIndicator(slot?.rawStatus.mStatus, fresh);
-      const light = element("span", "portrait-bay-led"); light.dataset.led = indicator.kind;
-      light.title = `Drive ${index + 1}: ${indicator.label}`; descriptions.push(light.title);
-      lights.append(light);
-    }
-    portrait.setAttribute("role", "img"); portrait.setAttribute("aria-label", `${deviceLabel(pool.brand, pool.model, pool.connectionType)}. ${descriptions.join(" ")}`);
-    image.alt = ""; fallback.setAttribute("aria-hidden", "true"); lights.setAttribute("aria-hidden", "true");
-    portrait.append(image, lights);
-  }
+  portrait.append(deviceArtwork(pool, fresh));
   return portrait;
 }
 
@@ -2268,7 +2177,7 @@ function mcpPanel(content: HTMLElement): HTMLElement {
 }
 
 function helpPanel(content: HTMLElement): HTMLElement {
-  content.append(panelIntro("Help", "Local read-only dashboard."), stateCard("Reconnect, refresh, and support limits", "Reconnect the enclosure, refresh Status or Capacity, and treat stale values as last reported. Use Capabilities and limits for unavailable features. Tools only exposes backend-reported allowlisted controls for an explicitly chosen target.", "quiet")); return content;
+  content.append(panelIntro("Help", "Device monitoring and support guidance."), stateCard("Reconnect, refresh, and support limits", "Reconnect the enclosure, refresh Status or Capacity, and treat stale values as last reported. Use Capabilities and limits for unavailable features. Tools only exposes backend-reported allowlisted controls for an explicitly chosen target.", "quiet")); return content;
 }
 
 function panelIntro(title: string, subtitle: string): HTMLElement {

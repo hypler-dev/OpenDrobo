@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 from desktop_tools import ROOT
+from release_notices import inspect_packaged_notices
 from release_metadata import MetadataError, desktop_metadata
 
 CPU_TYPES = {0x01000007: "x86_64", 0x0100000C: "arm64"}
@@ -160,7 +161,7 @@ def preflight(app: Path, *, root: Path = ROOT, local_structural: bool = False,
     research_free = not bool(build.get("fskit_research")) and not contains_extension
     gates.append(_gate("no-research-module", research_free,
                        f"metadata={build.get('fskit_research')} extension={contains_extension}"))
-    gates.append(_gate("no-local-vendor-artwork", build.get("artwork_source") == "generated-fallback",
+    gates.append(_gate("no-local-vendor-artwork", build.get("artwork_source") in ("generated-fallback", "opendrobo-rendered-v2"),
                        str(build.get("artwork_source"))))
     gates.append(_gate("no-ad-hoc-signature", build.get("signing_identity") not in (None, "ad-hoc"),
                        str(build.get("signing_identity"))))
@@ -210,6 +211,8 @@ def preflight(app: Path, *, root: Path = ROOT, local_structural: bool = False,
         else:
             # Public readiness must include explicit notarization and Gatekeeper proof.
             gates.append(_gate(name, False, "not requested"))
+    notices_ok, notices_detail = inspect_packaged_notices(app / "Contents/Resources", build, root=root)
+    gates.append(_gate("third-party-notices", notices_ok, notices_detail))
     ready = not local_structural and all(gate["passed"] for gate in gates)
     return {"schema": "opendrobo-release-preflight-v1", "app": str(app),
             "localStructural": local_structural, "distributionReady": ready, "gates": gates}

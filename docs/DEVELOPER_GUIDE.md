@@ -46,9 +46,9 @@ make check
 make build
 ```
 
-`make check` currently runs 24 lanes: Rust tests, frontend type/build checks, desktop policy tests, nine exact-capacity statistics tests, six Status-selection and identity-label tests, six drive-indicator decoder/presentation tests, five usage/volume-grouping tests, native icon rendering/binding-bound checks, native transport sanitizer checks, DriverKit policy checks, and direct FSKit checks. These tests do not activate a driver, mount a filesystem, or send commands to a Drobo.
+`make check` currently runs 24 lanes: Rust tests, frontend type/build checks, desktop policy tests, exact-capacity statistics, Status-selection/identity, drive-indicator and usage/volume-grouping behavior suites, native icon rendering/binding-bound checks, native transport sanitizer checks, DriverKit policy checks, and direct FSKit checks. These tests do not activate a driver, mount a filesystem, or send commands to a Drobo.
 
-The default optimized package targets macOS 14 on either architecture and excludes FSKit and extracted vendor artwork. Private builds may explicitly request `--local-artwork`; default public resources use generated fallbacks. The optional FSKit module and its direct checks require macOS 26 SDK/runtime support; it remains inactive. Build and test the app14 path separately from the FSKit research path.
+The default optimized package targets macOS 14 on either architecture and excludes FSKit and extracted vendor artwork. Default UI resources use newly rendered OpenDrobo art and independently authored live enclosure graphics. Private builds may explicitly package ignored legacy files with `--local-artwork`, but normal UI no longer references them. Decorative artwork lights are not telemetry. The optional FSKit module and its direct checks require macOS 26 SDK/runtime support; it remains inactive. Build and test the app14 path separately from the FSKit research path.
 
 For an Intel macOS 14 preview without FSKit:
 
@@ -62,7 +62,7 @@ For the default Apple-silicon package without research extensions:
 python3 scripts/build_desktop.py --output dist/arm64
 ```
 
-The default package is a clearly labeled local candidate with ad-hoc signing. It is not a notarized distribution release. Developer ID and notarization gates, version parity, dependency inventory and artifact preflight are described in [release preparation](RELEASING.md).
+The default package is a clearly labeled local candidate with ad-hoc signing. It is not a notarized distribution release. Developer ID and notarization gates, version parity, dependency inventory and artifact preflight are described in [release preparation](RELEASING.md). Current notice packaging binds generated resources to the Cargo/npm inputs, reproduces the default graph, and keeps legal review separate from documentary coverage; see [third-party notices](THIRD_PARTY.md). Driver bring-up and the separately identified spare 5D are covered by [hardware validation](HARDWARE_VALIDATION.md).
 
 ## CLI and MCP
 
