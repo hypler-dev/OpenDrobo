@@ -2,15 +2,29 @@
 
 OpenDrobo is an independent desktop dashboard for Drobo storage. See your enclosure, drive bays, usable capacity, mounted volumes and storage activity in one dark interface.
 
+## App screenshots
+
+Current macOS preview with a connected Drobo 5D. These are actual app captures; capacity and history reflect that unit's observations. Click an image to view it at full size.
+
+| All Drobos | Status |
+| --- | --- |
+| [![Connected Drobo overview with drive-bay lights](docs/screenshots/all-drobos.png)](docs/screenshots/all-drobos.png) | [![Enclosure information, SSD cache and compact drive-light legend](docs/screenshots/status.png)](docs/screenshots/status.png) |
+| **Capacity** | **Usage** |
+| [![RGB storage-capacity ring with used and free space](docs/screenshots/capacity.png)](docs/screenshots/capacity.png) | [![Usage breakdown with installed drives and separate macOS measurement](docs/screenshots/usage.png)](docs/screenshots/usage.png) |
+| **Statistics** | **Tools** |
+| [![Recorded capacity history with observation gaps](docs/screenshots/statistics.png)](docs/screenshots/statistics.png) | [![Tools with explicit control-target selection and current operation limits](docs/screenshots/tools.png)](docs/screenshots/tools.png) |
+
+Screenshots show the current preview, including unavailable operations. See [capture details](docs/screenshots/README.md) and [compatibility](#compatibility) before choosing hardware or relying on a feature.
+
 ## Your storage at a glance
 
 - One enclosure per Drobo, with automatic selection when only one unit is connected.
-- Drive-bay indicators with explanations for capacity warnings, drive faults and data protection.
-- Protected usable, used and free capacity, shown separately from raw drive capacity and macOS filesystem usage.
+- Interactive enclosure graphics with matching drive-bay lights and a compact color-bar legend. Steady capacity warnings, flashing drive faults and data protection have distinct explanations.
+- An RGB capacity ring with a transparent unused track, plus clear usable, used and free measurements. Raw drive capacity and macOS filesystem usage stay separate.
 - A tidy volume list with native Mac icons, filesystem, mount location, permissions and enclosure grouping.
 - Drive make/model, firmware and SSD capacity/life when the device reports them.
 - Capacity history, charts, observation gaps, events and a bounded application console.
-- A branded startup screen and menu-bar shortcuts for dashboard pages, read-only refresh, hide/show and quit.
+- A three-second artwork splash with immediate skip, matching application icons and menu-bar shortcuts for dashboard pages, read-only refresh, hide/show and quit.
 - Native Mac sharing visibility and a shortcut to File Sharing settings. macOS accounts and folder permissions remain authoritative.
 - Optional read-only MCP access for a trusted local assistant or script. See the [MCP guide](docs/MCP.md).
 
@@ -26,7 +40,7 @@ HFS+ and APFS volumes are visible when macOS mounts them and their Drobo binding
 
 ## Capacity and data safety
 
-Drobo's logical volume ceiling can be much larger than its installed usable capacity. OpenDrobo shows protected-pool capacity and filesystem usage separately. It does not change Finder's capacity reporting or rewrite filesystem geometry.
+Drobo's logical volume ceiling can be much larger than its installed usable capacity. OpenDrobo shows Drobo usable capacity and macOS filesystem usage separately. It does not change Finder's capacity reporting or rewrite filesystem geometry.
 
 OpenDrobo does not currently assemble BeyondRAID member disks, reconstruct or repair an array, format a disk pack, reset a unit, or update firmware. These capabilities require further research and disposable-hardware validation. The [spare-unit lab guide](docs/SPARE_UNIT_LAB.md) prepares an offline test plan without running hardware operations.
 
@@ -49,4 +63,4 @@ Trusted tester builds can use macOS's per-app approval when available, without a
 
 Read the [management guide](docs/MANAGEMENT_FEATURES.md) for dashboard features, the [developer guide](docs/DEVELOPER_GUIDE.md) for architecture and contribution details, and the [release guide](docs/RELEASING.md) for distribution checks.
 
-OpenDrobo is not affiliated with Drobo. Public builds exclude vendor binaries, firmware, extracted vendor artwork, credentials and private captures.
+OpenDrobo is not affiliated with Drobo. Public builds exclude vendor binaries, firmware, extracted vendor artwork, credentials and private diagnostic captures. The gallery contains selected app-window screenshots only.
