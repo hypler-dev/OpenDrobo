@@ -13,6 +13,25 @@ typedef struct {
 /* Registry reads only. No driver is installed or opened by enumeration. */
 int32_t od_list_devices(ODNativeDevice *devices, size_t limit, size_t *count);
 
+typedef struct {
+    uint64_t registry_id;
+    uint64_t total_bytes;
+    uint64_t used_bytes;
+    uint64_t available_bytes;
+    uint32_t read_only;
+    uint32_t statistics_available;
+    char id[64];
+    char name[256];
+    char filesystem[32];
+    char mount_path[4096];
+} ODNativeVolume;
+
+/* Mounted root and /Volumes entries only; cached OS logical statistics.
+ * No directory traversal, mount, device open, or protected-pool claim. */
+int32_t od_list_volumes(ODNativeVolume *volumes, size_t limit, size_t *count);
+/* Count every mounted Drobo filesystem, including custom mount locations. */
+int32_t od_mounted_drobo_count(uint32_t *count);
+
 /* Only the original driver's read-only capacity selector is exposed. */
 int32_t od_capture_capacity(uint64_t registry_id, uint8_t *page, size_t limit, size_t *length);
 

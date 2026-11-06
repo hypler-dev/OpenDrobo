@@ -6,25 +6,25 @@ This document separates recovered historical behavior from OpenDrobo behavior. I
 
 | Surface | Current state |
 | --- | --- |
-| Shared UI | Tauri 2 interface in `desktop/`, dark glass styling, RGB selection glow, optional local artwork |
+| Shared UI | Tauri 2 interface in `desktop/`, dark glass styling, RGB selection glow, selectable unit/drive graphics, capacity pies, ranged observation charts, optional local artwork |
 | Portable core | Rust `crates/opendrobo-core`, pure capacity decoding and validation with C ABI |
-| macOS transport | C bridge to original loaded Drobo management driver; bounded read-only MODE SENSE path only |
+| macOS transport | C bridge to original loaded Drobo management driver; bounded capacity path plus original-service pool observer |
 | macOS filesystem | Swift FSKit extension source and direct checks; separate read-only view, not installed or mounted |
-| Linux / Windows | Shared UI/core direction only; device transport, filesystem adapter, packaging, and hardware tests pending |
+| Linux / Windows | Shared Rust/UI direction; Drobo transport adapters, host-volume adapters, packaging, and hardware tests pending |
 | BeyondRAID | Static recovery and research only; no reader, writer, or mount implementation |
-| Network management | Proposed authenticated host agent; no service, port, or home-Mac connection exists |
+| Network management | No host agent, network MCP listener, or remote telemetry; native macOS sharing inspection limited to verified Drobo-mounted paths and settings handoff only |
 
 Original driver remains prerequisite for current macOS transport. Replacement Thunderbolt PCI/DMA or DriverKit storage driver is separate research project.
 
 ## Management backlog
 
-1. Validate byte units and model identity on named spare enclosure with read-only captures.
+1. Validate byte units and model identity on named spare enclosure with read-only captures. Current home evidence is one Drobo 5D-TB on Intel macOS 14 with HFS+ volumes, one protected pool, two LUNs, and an SSD; it is not a universal model profile.
 2. Add reviewed per-model capability profile only after repeated captures agree with known geometry.
 3. Complete FSKit mount, unmount, disconnect, and Finder comparison tests on spare unit; keep HFS+ geometry unchanged.
-4. Add authenticated home-Mac read-only status agent only after pairing, credential, retention, and exposure design is accepted.
-5. Implement Linux SCSI-generic and Windows SCSI pass-through adapters behind same Rust contracts, separating software tests from hardware claims.
-6. Recover BeyondRAID metadata generations, CRC rules, and block mapping from known member images before recovery UI.
-7. Keep firmware, restart, shutdown, format, rebuild, and array writes closed until operation-specific safety and rollback tests exist.
+4. Implement Linux SCSI-generic and Windows SCSI pass-through adapters behind same Rust contracts, separating software tests from hardware claims.
+5. Recover BeyondRAID metadata generations, CRC rules, and block mapping from known member images before recovery UI.
+6. Keep reset, format, rebuild, firmware, and array writes closed. Current GUI-only controls are identify, LED presets, brightness read, restart, shutdown, and standby; hardware execution remains untested.
+7. Establish authenticated or independently attested local-service identity. Current bounded loopback status parsing does not authenticate the process serving port 4502; a local process that acquires that port while DDService is absent can forge observations and recorded capacity. Keep MCP read-only, expose the unverified source, and do not use these readings to authorize autonomous device operations. See [MCP integration](MCP.md).
 
 Legacy NAS features such as DHCP/static addressing, users, shares, permissions, and alerts belong to model-specific network adapters. Do not infer them for Thunderbolt DAS.
 
@@ -32,7 +32,7 @@ Legacy NAS features such as DHCP/static addressing, users, shares, permissions, 
 
 The [Linux kernel SCSI-generic documentation](https://www.kernel.org/doc/html/latest/scsi/scsi-generic.html) and [Microsoft SCSI pass-through documentation](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddscsi/ni-ntddscsi-ioctl_scsi_pass_through) establish available OS interfaces, not Drobo compatibility. Modern USB variants may differ. The original [drobo-utils README](https://github.com/petersilva/drobo-utils/blob/main/README.rst) documents older Linux/model paths, later protocol gaps, broken diagnostics/firmware features, and lack of current hardware testing. It is useful reference evidence, not a compatibility certificate. Its GPL code has not been copied into this MIT project.
 
-The historical [5D3 vendor user guide](https://content.etilize.com/User-Manual/1040150862.pdf) includes Windows Dashboard installation and USB/Thunderbolt interfaces; it does not prove that OpenDrobo or every connection works on a current Windows release. The user's exact enclosure remains unidentified.
+The historical [5D3 vendor user guide](https://content.etilize.com/User-Manual/1040150862.pdf) includes Windows Dashboard installation and USB/Thunderbolt interfaces; it does not prove that OpenDrobo or every connection works on a current Windows release. Current home evidence identifies one 5D-TB unit, but does not establish broader 5D-class compatibility.
 
 ## Legacy capabilities depend on model
 
@@ -59,7 +59,7 @@ Static `DDService64d` inspection found OpenSSL-related symbols. This does not es
 4. **Multiple hosts and NAS adapters:** one device inventory with per-model capability reporting. NAS settings/users/shares remain separate from Thunderbolt transport.
 5. **Management writes:** only after read paths and response semantics are verified on the named spare enclosure. Restart, shutdown, settings, firmware, formatting, and array changes need operation-specific safeguards and validation.
 
-These are proposed slices, not promised delivery dates. The current app provides registry discovery, optional GitHub release checks, and an explicit bounded read-only capacity query through the original management driver. This workspace has no attached enclosure, so no device command was submitted here. No home-Mac access, service installation, network port exposure, or remote telemetry was introduced.
+These are proposed slices, not promised delivery dates. Current app provides registry discovery, protected-pool observation, Drobo-bound host-volume statistics, bounded console/events, five-minute local capacity history with range, utilization, allocation-change and observation-gap charts, native sharing inspection limited to Drobo-mounted exports, read-only MCP, and GUI control availability. GUI control writes are source-implemented and mock-tested but hardware-untested. Other array providers and generic host-volume inventory remain future adapter work. No service installation, network port exposure, or remote telemetry was introduced. Original DDService remains owner of the management connection; OpenDrobo does not stop it.
 
 ## Community evidence and corresponding work
 
@@ -75,6 +75,10 @@ Reports below are attributed symptoms, not reproduced root causes. Repository fe
 | [DroboBridge issue 1](https://github.com/ringo380/DroboBridge/issues/1), January 2026 | Maintainer feature request for direct USB health/bay/capacity/rebuild information; not a reproduced device failure | Reuse confirmed protocol records behind a capability interface; keep USB, Thunderbolt PCI, and NAS paths separate |
 
 The [static recovery notebook](../research/STATIC_RECOVERY.md) now identifies handshake, power-transition, index-version, CRC, and map-validation targets relevant to those slices. It does not establish that any reported issue has been fixed.
+
+## Two-enclosure host RAID assessment
+
+Thunderbolt chaining does not merge two enclosures into one BeyondRAID pool. A host-managed mirror or stripe across separate Drobos is an untested architecture option, not current OpenDrobo support. Thin-provisioned logical sizes, actual protected capacities, stable member identity, virtual-member ancestry, mount guards, disconnect recovery and power safety need a separate spare-unit test plan. No raw-member passthrough mode has been verified. See [firmware capabilities](FIRMWARE_CAPABILITIES.md#beyondraid-filesystems-and-appleraid).
 
 ## Spare-unit experiment boundary
 

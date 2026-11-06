@@ -1,4 +1,4 @@
-# Read-only macOS management ABI recovery
+# macOS management ABI and original-service protocol
 
 Research date: November 5, 2026. This describes a userspace bridge to the original management driver. It is not a replacement Thunderbolt PCI/DMA driver or proof of hardware compatibility. Overall acceptance is in [the work record](../docs/WORK_RECORD.md); byte accounting and Finder limits are in [capacity reporting](../docs/CAPACITY_REPORTING.md).
 
@@ -51,3 +51,39 @@ The extension follows [Apple's path-resource passthrough example](https://develo
 Ignored receipts under `artifacts/reports/transport` include `trusted-mcp-*`, `trusted-details-mcp-*`, `trusted-passthrough-mcp-*`, and `service-transport-mcp-*`. They contain exact queries, executable identities, dispatch details, pseudocode, and selected assembly. Original binaries and raw decompilation are not distributed in the source repository.
 
 The spare-unit test must identify the exact model, firmware, adapter chain, host macOS, filesystem, and LUN layout. First capture raw records read-only and establish byte scale against known protected capacity. A reviewed model profile can then enable byte reporting. Only afterward should a signed/activated read-only view be tested for `statfs`, Foundation, and Finder agreement and byte-for-byte file access. Disconnects, stale data, and mount replacement need separate tests. Writable BeyondRAID, array repair, firmware flashing, and direct replacement Thunderbolt storage transport remain outside this preview.
+
+## Local original-service protocol
+
+The original `SkyPCManager::Listen` binds loopback port 4502. Its session header is 16 bytes on the wire, sent from offset two of an 18-byte C++ object. `TMSessionHeader` constructors at `0x10000c908`/`0x10000c938`, Send at `0x10000c974`, and DataLength at `0x10000ca44` establish this layout:
+
+| Wire offset | Meaning |
+| --- | --- |
+| 0..7 | ASCII `DRIDDSVC` |
+| 8 | Opcode |
+| 9 | Protocol version 1 |
+| 10 | Update event type, or zero for command requests/results |
+| 11 | Reserved zero |
+| 12..15 | Big-endian payload length |
+
+A subscription sends opcode 1 with no payload. It registers a temporary update observer; no disk or configuration command is sent. Disconnect closes the client socket. Original proxy culling unregisters listeners and destroys owned threads/sockets, but immediate server-side cleanup timing has not been established. Avoid describing subscription as literally no service state change.
+
+Status replies use opcode 7: event 1 or 3 carries `ESATMUpdate`, and event 4 carries `ESATMDevices`. Original rebroadcast sets the header event byte from its update-type argument. Event 2 is a removal notification; the bounded snapshot reader waits for a complete device list and update set and otherwise reports unavailable/stale rather than inferring health. Payloads are UTF-8 XML, normally NUL terminated. OpenDrobo validates header/root correspondence, counts, decimal integer bounds and duplicate critical fields, and rejects entities/DOCTYPE. It publishes a pool once per internal ESA identity, with separate LUN and slot arrays. Raw identifiers, serials and credential fields are not exported.
+
+### Fixed GUI control channel
+
+Opcode 3 carries a NUL-terminated `TMCmd` XML document. The command router reads `CmdID`, `ESAID` and `Params`; opcode 6 returns a `TMCmd` containing the matching `CmdID`, `Result` and optional `ResultDetails`. No arbitrary XML, command ID, path, shell operation or CDB is accepted from the frontend. MCP exposes only control availability.
+
+| Action | CmdID | Fixed parameter policy |
+| --- | --- | --- |
+| Identify | 26 | `IdentifyInterval` follows original Dashboard: 0 when feature `0x10000000` is set, otherwise 900; interval units remain unknown |
+| LED preset | 8 | `Value` from recovered ten-entry map: 1, 2, 5, 7, 9, 11, 15, 25, 40, 59 for UI preset 0..9 |
+| Read dim level | 9 | No caller-selected parameter; result is a raw device scale, not a percentage |
+| Restart | 21 | `ForceRestart=0` |
+| Standby | 22 | No force parameter |
+| Shutdown | 23 | `ForceShutdown=0` |
+
+The `TMCmdNames` table at `0x1004cf6e0` establishes command identifiers. `SetDimming` at `0x100066dac` reads `Params/Value`; the original Dashboard's `kDimmingInfo` table and `GeneralSettingsPresenter::GetUpdatedXml` establish preset mapping. The Dashboard binary SHA-256 is `4abe55422533ed9ca2220927cdbd26dd98c9e2f4a1d411224ccc9aed546e5d64`. `ESADevice::processCommand` at `0x100079da4` establishes identify and restart parameters; `ESABlockDevice::processCommand` at `0x10006c2e0` establishes standby/shutdown routes. Restart checks safety, then calls `UnmountAllVolumes`; unmount failure prevents progress. OpenDrobo additionally requires an exact analyzed service hash, a freshly resolved hashed target, the reviewed 5D Thunderbolt path, typed confirmation and no detected mounted Drobo filesystem for power operations.
+
+Mock tests check framing, fixed parameters, target/range rejection, non-forced flags and reply validation. No light-setting or power command has been tested on the home pack. Service acceptance does not prove the hardware transition. Partial send, malformed reply or timeout produces unknown outcome; never retry automatically. Reset, format, firmware, repair/rebuild, shares/users and arbitrary original command routes are not executable.
+
+Ignored exact evidence is under `artifacts/reports/home-capacity/service/` and `dashboard-controls/`; it is not redistributed as vendor source. See the product [management surface](../docs/MANAGEMENT_FEATURES.md), [developer guide](../docs/DEVELOPER_GUIDE.md), and [storage matrix](../docs/STORAGE_SUPPORT.md).

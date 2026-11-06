@@ -4,9 +4,27 @@ Date: November 5, 2026. Goal: report protected usable, used, and free capacity i
 
 ## Current result
 
-Original service and firmware records are recovered. Portable Rust decoder, native read-only transport bridge, and macOS FSKit read-only view are implemented and directly checked. **Physical byte units are not certified yet.** Live adapter therefore returns capacity unavailable, and FSKit statistics stay unavailable rather than displaying guessed values. Finder reporting is unchanged because extension has not been installed, activated, mounted, or tested with Drobo.
+OpenDrobo can now read protected-pool total, used and free capacity from the original local Dashboard service. A read-only home-Mac observation confirmed a Drobo 5D over Thunderbolt with one protected pool, two HFS+ logical volumes, five hard drives and an SSD/cache slot. The service's explicit capacity fields are displayed as **service-reported bytes**. OS filesystem usage remains a separate measurement. Exact host readings and raw service frames stay in ignored private receipts.
 
-The workspace Mac has no attached enclosure. A separately authorized home-Mac application trial verified Intel macOS 14.7.7 and two original-driver endpoints identifying as `5D - TB` over Thunderbolt; the Intel OpenDrobo preview discovered both. Registry media include HFS-type partitions, one under a 64 TiB logical disk and another under a roughly 2 TB logical disk. Physical enclosure grouping, mounted-filesystem identity, LUN scope, adapter chain and capacity byte units remain unverified. No capacity command or filesystem-statistics test ran in that discovery trial. Spare hardware remains reserved for a separate lab plan.
+This does not certify a raw-wire model profile. The direct user-client decoder still passes `byteUnitsConfirmed: false`, and its single-volume gate remains closed for a multi-LUN pack. A separate pool diagnostic accepts bounded LUN evidence without assigning the pool total to an individual filesystem. Both direct opens on the home Mac returned `kIOReturnExclusiveAccess` while the original service owned the connection; OpenDrobo did not stop that service or force the connection.
+
+Finder reporting remains unchanged. The current separate-view FSKit research module requires macOS 26, while the home Mac runs Intel macOS 14.7.7. The module has not been activated or mounted. It does not override Apple's HFS+ provider or alter the existing 64 TiB logical geometry. A compatible filesystem presentation, per-volume accounting policy and named spare-unit validation remain required.
+
+## Three accounting layers
+
+| Layer | Meaning | Current presentation |
+| --- | --- | --- |
+| Protected pool | Device/service accounting shared by all LUNs in the disk pack | Pool total, allocated and free bytes; source and observation age shown |
+| OS filesystem | Used/free space in each mounted HFS+ or other host filesystem | Native cached filesystem statistics in Volumes; logical ceilings remain labeled |
+| Physical slots | Raw capacity of each installed HDD or SSD | Per-slot capacity and SSD life; not added together as protected usable capacity |
+
+Service protected usage and OS filesystem usage need not match. Metadata, protection and allocation accounting belong to different layers. Never add the pool total once per LUN, subtract one LUN's OS usage from a shared pool and call the result that LUN's free space, or present the SSD's raw capacity as writable user storage. Cache-used/free values remain unknown because the recovered record does not establish them.
+
+## Original-service observer
+
+`desktop/src-tauri/src/service.rs` uses a fixed read-only subscription to `127.0.0.1:4502`. It validates frame identity, version, event type, reserved byte, declared lengths, strict XML and complete advertised device membership. Bounds are 16 frames, 512 KiB per XML record, 2 MiB per subscription and a 35-second absolute deadline. Internal ESA identifiers correlate LUNs to a shared pool; UI/MCP identifiers are SHA-256 pseudonyms. These identifiers are not authentication credentials.
+
+The GUI pauses five seconds between bounded service reads and reuses successful observations for at most five seconds in the same process. A full original-service update can require up to 35 seconds; the displayed observation time is preserved. A fresh observation means a recently received service cache, not an independently timed hardware measurement. Read failures retain old data as stale. Confirmed service removal and unavailability remain different conditions. Device events record changes seen by this process; they do not recover the device's historical onboard event log.
 
 ## Recovered vendor record
 
@@ -44,7 +62,7 @@ Module currently supports ordinary read-only files and directories, path confine
 Before any Finder claim, spare enclosure test must establish:
 
 1. Byte units from device records against known pack geometry.
-2. Registry identity, physical pack identity, and single-LUN scope.
+2. Registry identity, physical pack identity, and a validated single-volume or shared-pool accounting policy.
 3. Agreement between decoded protected values and repeated read-only captures.
 4. Mount, `statfs`, Foundation statistics, and Finder display on same read-only view.
 5. Disconnect, remount, stale-record, and shared-pool behavior.
@@ -64,8 +82,7 @@ ceilings; it never uses them to satisfy the protected-capacity confirmation.
 An ARM64 DriverKit task adapter compiles against the installed SDK. Its
 read-only command policy distinguishes those geometry queries from the two
 vendor MODE SENSE pages. It performs no MMIO or DMA and is not a live backend.
-The application and FSKit provider still use the existing management bridge
-and retain the unconfirmed-unit gate.
+The guarded raw-capacity and FSKit provider paths retain the existing management bridge and unconfirmed-unit gate. The separate service observer supplies UI/MCP pool values without enabling that gate.
 
 The follow-up includes separate version-4 storage/management queues, DMA lease
 ownership, firmware-defined interrupts, a real SDK/IIG SCSI service, target/task

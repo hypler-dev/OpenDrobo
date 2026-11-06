@@ -2,6 +2,20 @@
 
 Last updated: November 5, 2026. This is the canonical status and acceptance record.
 
+## Latest accepted packet: device-focused Dashboard, statistics and MCP boundaries
+
+The user requested a closer reconstruction of the original Dashboard's screen organization, component selection, enclosure graphics, capacity display, and settings locations, with new functionality kept accessible alongside it. The original local XAML resources, English labels, and artwork inventory provide layout evidence; they do not establish full functional parity. This packet replaces the generic status-card layout with a component inspector and selectable drive bays, restores Capacity/Usage and original Tools/General settings placement, and places additional diagnostics under Advanced. Unknown values and unsupported operations must remain explicitly unavailable. Runtime UI and device checks target the home Mac; local checks remain offline software validation.
+
+The MCP assessment covers the current desktop source and its host/service boundaries. The independent baseline reported no candidate; a separate focused reviewer found an unauthenticated loopback-source boundary. Root validated that local port 4502 can supply structurally valid observations without peer authentication, and accepted one **low-severity, high-confidence CWE-345** finding: a local process that obtains the port while DDService is absent can forge displayed metadata and poison bounded capacity history. This does not establish remote exposure, MCP control execution, arbitrary file access, or a disk-pack write. `sourceTrust: unverified-loopback` records that limitation; it does not remediate peer authentication. The [MCP product guide](MCP.md) documents purpose, intentional data disclosure, and operational limits.
+
+The Codex Security managed scan (`7bef81a8-678a-43f7-a184-a3773956952c`) could not save canonical artifacts. Its tool repeatedly returned `Scan output parent must not be group- or world-writable without the sticky bit.` The authoritative output path has a `/Volumes/Storage` ancestor with mode `0775`; all scan descendants were private. No existing-scan relocation tool was available. Root did not change volume permissions, weaken plugin checks, or write replacement canonical artifacts. The scan was marked failed for this confirmed storage blocker; no sealed report or successful scan completion is claimed. The original candidate, generated model, and source validation were saved only through the tool's temporary artifact storage and may be cleaned by the OS. This is a source-backed assessment with an incomplete managed publication lane, not a clean security certification. No runtime exploit was performed. Token usage was not returned.
+
+The final source passes all 20 software-check lanes, including 41 desktop backend tests, nine statistics tests, 40 portable core tests, seven probe tests and 29 Python tests. Intel and ARM64 preview packages pass packaging checks. Ten SDK MCP tool calls pass against the final private Intel preview on the home Mac. The current runtime observations and remaining UI-input verification are recorded below. The original driver/service, Finder geometry, driver activation, filesystem mounts, live light/power tests and disk-pack mutation remain outside this packet.
+
+The user subsequently accepted optional MCP and requested more elaborate statistics plus a firmware-grounded feature assessment and an explanation of macOS software RAID. Extend Statistics with actual time-range selection, protected/free/OS-used trends, utilization and signed changes, observation gaps, reported drive capacities and SSD life, and session-scoped activity. Byte arithmetic must remain exact, missing observations must not become zero or an outage, and growth rates must be described as observed averages rather than forecasts. Additional telemetry command names are research leads until their payloads, units and model capability are recovered. Neither original firmware nor the BeyondRAID on-disk format has been modified. No AppleRAID conversion, member-disk passthrough, formatting or array migration is authorized by this assessment. The follow-up question about connecting two matching Drobos is an architecture assessment: Thunderbolt chaining is connectivity, while a potential host-managed mirror or stripe would retain two separate onboard BeyondRAID pools. OpenDrobo has not implemented or validated this arrangement; virtual-member ancestry, mount guards, thin-provisioned capacity and failure recovery remain open. See [firmware capabilities](FIRMWARE_CAPABILITIES.md).
+
+The user then identified the stretched Status selector in the current home-Mac view and requested visible options, better organization and device-specific settings. Replace that dropdown with visible System/Drive choices, remove the collapsed Advanced navigation group, and show only verified settings for the explicitly selected device. Remove irrelevant NAS forms from the 5D flow and retain native host Sharing as a separate page. Raw logical geometry remains closed technical detail, as previously requested.
+
 ## Accepted intent
 
 The user authorized an independent OpenDrobo application with the original Dashboard interaction model, modern macOS/Apple silicon support, a Rust core, a shared Tauri UI, and offline reverse engineering of the original service, driver, and firmware. The user also authorized publication of the latest source updates to the public `hypler-dev/OpenDrobo` repository. Long-term scope includes BeyondRAID recovery and Linux/Windows adapters.
@@ -13,7 +27,7 @@ The former third-party application dependency has been removed. No external pars
 - `crates/opendrobo-core`: portable Rust capacity decoder/C ABI, copied Thunderbolt port/frame codecs, and an offline RMR header-candidate inspector.
 - `crates/opendrobo-probe`: a bounded, file-only inspection CLI independent of the original Drobo driver.
 - `desktop/`: shared Tauri 2 TypeScript/CSS interface with original-style navigation, dark glass surfaces, animated selection glow, empty states, and release lookup. The shared app targets macOS 14+; an Intel preview has run on macOS 14.7.7 with the optional macOS-26 FSKit module excluded.
-- `desktop/src-tauri/`: Rust commands for registry discovery, bounded read-only capacity calls, raw hexadecimal lab capture, and scoped GitHub release checks.
+- `desktop/src-tauri/`: Rust commands for registry discovery, guarded raw capacity, original-service protected-pool/slot observations, device events, sanitized Console history, read-only stdio MCP, OS storage/sharing inspection, fixed GUI controls and scoped GitHub release checks.
 - `platform/macos/transport/`: C bridge for original user-client ABI. Query is open → LUN page 4 → capacity page 2 → close; no arbitrary or write commands.
 - `platform/macos/fskit/`: Swift FSKit read-only separate-view module with path/inode binding, held descriptors, directory enumeration, and conservative symlink confinement.
 - `platform/macos/driverkit/`: an ARM64 SDK/IIG SCSI service, read-only policy, DMA leases, interrupt interpreter, bounded version-4 storage/management engines, inline logical-geometry replies, completion-based graceful drain, and SDK resource adapters. The local `.dext` is disabled before hardware access and has not been installed or activated.
@@ -24,9 +38,9 @@ The macOS bridge depends on the original Drobo management driver already being l
 
 ## Capacity truth
 
-Recovered protected-capacity fields are documented in [CAPACITY_REPORTING.md](CAPACITY_REPORTING.md), with the recovered call structure in [MACOS_MANAGEMENT_ABI.md](../research/MACOS_MANAGEMENT_ABI.md). Device byte units are **not hardware-verified**. Live decoding therefore reports unavailable; raw capture is evidence collection only. No model profile currently enables byte reporting.
+Protected-pool values can now be read from the original local service and displayed as service-reported bytes, separately from OS logical volume totals/usage and SSD physical capacity. [CAPACITY_REPORTING.md](CAPACITY_REPORTING.md) explains these accounting layers; [MACOS_MANAGEMENT_ABI.md](../research/MACOS_MANAGEMENT_ABI.md) records both the raw user-client ABI and local service/control protocol. Raw device byte units are **not hardware-certified**, so the direct decoder/FSKit model-profile gate remains closed. Service values do not silently enable that separate path.
 
-The FSKit view does not override an existing Apple HFS+ mount or change disk geometry. The extension is compiled and directly checked, but has not been activated, mounted, or validated in Finder. Its nonthrowing statistics callback returns zeroed fields when information is unavailable; those zeros are not a measured empty pack. Home registry media now confirm HFS-type partitions; mounted-filesystem identity remains unverified. Earlier offline slices did not access the home Mac; the separately authorized discovery/launch trial below reads host/registry metadata without opening a device user client or sending a capacity command.
+The FSKit view does not override an existing Apple HFS+ mount or change disk geometry. The extension is compiled and directly checked, but has not been activated, mounted, or validated in Finder. Its nonthrowing statistics callback returns zeroed fields when information is unavailable; those zeros are not a measured empty pack. The later authorized home-Mac capacity trial confirmed mounted Journaled HFS+ filesystems and one service pool spanning two LUNs, with five hard drives and an SSD. The earlier discovery-only record below is historical. Direct pool-diagnostic opens returned exclusive access while the original service owned the connection; that service was left running.
 
 ## Validation and packaging
 
@@ -57,7 +71,7 @@ This follow-up started from published checkpoint `76be5b2d9ee0382caa9d78bb3a6d16
 
 ## Open gates
 
-Hardware proof remains open: physical enclosure/pack grouping, mounted filesystem, adapter chain, LUN scope, byte units, Finder statistics, disconnect behavior, and multiple-LUN policy. The home trial below verifies macOS 14.7.7/Intel and `5D - TB` registry identity only. BeyondRAID reconstruction remains research-only. Network management remains proposed authenticated host agent. Source checks do not authorize firmware, restart, shutdown, format, rebuild, array mutation or disk erase; home-Mac access requires its separate accepted trial scope below.
+Open hardware gates include independent raw byte-unit/model certification, adapter-chain completeness, Finder statistics, disconnect behavior and per-volume/shared-pool presentation. The later home trial confirms macOS 14.7.7/Intel, a service-identified 5D Thunderbolt pool, two mounted HFS+ volumes and SSD telemetry; it does not validate replacement-driver operation. BeyondRAID reconstruction remains research-only. Network management remains proposed authenticated host agent. Source checks do not authorize firmware, restart, shutdown, format, rebuild, array mutation or disk erase; home-Mac access requires its separate accepted trial scope below.
 
 ## Active driver-independence research
 
@@ -165,7 +179,13 @@ Root controlled remote access, compatibility decisions, toolchain/build integrat
 
 Ignored receipts under `artifacts/reports/home-mac/` retain source hashes, both build logs, full-check results, selected preflight observations, archive transfer/checksum, signature/scan output, launch and window metadata. An initial JXA window-observer conversion failed after successful app launch; a corrected observer confirmed process/window state. That observer failure was not an application failure. Raw vendor assets, toolchains, packages and private host receipts remain outside public source. Source publication uses the standing authorization; this record's containing commit identifies the compatibility change. No unrelated source dirt was present.
 
+## Home Mac capacity read and Finder comparison
+
+The user's next request authorizes bounded read-only capacity queries on the home Mac and comparison with current OS volume totals/usage. The existing single-volume and byte-unit reporting gates remain in place. Start with the installed preview's capture path and mounted-volume metadata, then diagnose any refusal using exact evidence. Any new pool diagnostic must remain separate from per-volume/Finder reporting and accept only fixed data-in requests; no arbitrary CDB, mapping change, reset, firmware command, disk write, driver activation or filesystem mount is included. No recursive file scan or unrelated host-service access is required. Record raw pool values separately from OS filesystem usage and unverified units before making a capacity claim.
+
 ## Next safe slice
+
+The user's expanded request adds local read-only MCP access, an application console, sharing inspection and broader storage/filesystem capability reporting. Implement a bounded stdio MCP service with explicit tools, a sanitized bounded console shared by application/MCP processes, OS logical-volume metadata and SMB/NFS inspection. Existing protected-capacity and driver-enable gates remain unchanged. Other RAID devices may be visible as host-mounted storage; vendor-specific management and Linux Thunderbolt/EXT access are not represented as implemented. The user chose native OS accounts/permissions. The Sharing page therefore inspects current exports and opens native File Sharing settings; OpenDrobo does not enable shares or edit ACLs. No network MCP listener, arbitrary shell/file/CDB tool, new mount, filesystem installation or array mutation is part of this implementation.
 
 Add stronger SDK-service backend mocks for drain/source cancellation and partial lifecycle; trace remaining completion/error paths and hardware-wide quiescence without treating PCI Close/reset as proof; complete SCSI sense/mode-page and reset/power policies. Define entitlement/provisioning and a named spare-unit activation plan only after those gates are met. Connect an independent management service to the application with verified device/LUN/unit binding. Capture true protected capacity and compare FSKit `statfs`/Foundation/Finder on the same read-only view. A smaller READ CAPACITY is not a safe way to change existing HFS+ statistics. BeyondRAID member locations/generations and real-image reconstruction remain separate research.
 
@@ -173,10 +193,89 @@ Add stronger SDK-service backend mocks for drain/source cancellation and partial
 
 ```text
 Repo: OpenDrobo; start with pwd, git branch --show-current, git rev-parse HEAD, git status --short --branch.
-Read: README.md -> docs/WORK_RECORD.md -> research/THUNDERBOLT_TRANSPORT.md -> research/BEYONDRAID_LAYOUT.md -> docs/CAPACITY_REPORTING.md.
-Truth: Shared app min14; Intel14.7.7 private preview open, own scan sees two 5D-TB driver-ready endpoints; ARM64/FSKit packaging and all18 checks pass. Original driver still required; hardware gate closed; no capacity/Finder proof.
-Scope: finish bounded home discovery trial evidence; stronger service/cancellation mocks; remaining firmware/error paths; hardware quiescence and SCSI/power behavior; verified capacity binding/units/FSKit; RMR research.
-Do not: expand home access beyond authorized read-only OpenDrobo trial; touch unrelated services, activate drivers/extensions, mount, flash, format, erase, mutate arrays, or publish vendor artifacts/private receipts.
-Validate: make check; native check after driver changes; target-specific preview build after package changes; fresh review; activation only under a separate named spare plan.
-Ledger: docs/WORK_RECORD.md; artifacts/reports; https://github.com/hypler-dev/OpenDrobo.
+Read: README.md -> docs/WORK_RECORD.md latest packet and final evidence -> docs/DEVELOPER_GUIDE.md -> docs/MANAGEMENT_FEATURES.md -> docs/FIRMWARE_CAPABILITIES.md -> task-specific research notes.
+Truth: Shared macOS14+ app; private Intel home preview; one 5D Thunderbolt pool, two HFS+ LUNs, five HDDs plus mSATA cache; protected capacity separate from logical ceiling. All20 checks and both Mac packages pass; original driver/service still required; FSKit inactive, Finder unchanged.
+Scope: finish final UI receipt/source publication; then bounded telemetry schema recovery, local-service identity attestation and named spare-unit validation. Two-enclosure host RAID is an assessment only, not supported or provisioned.
+Do not: expand home access beyond read-only OpenDrobo trial; alter unrelated services/ACLs/exports, activate drivers/extensions, mount, flash, format, erase, mutate arrays, execute light/power commands on the home data pack, or publish vendor assets/private receipts.
+Validate: make check after relevant source changes; exact target package/signature and read-only home smoke; fresh source/UI review. Hardware activation and host RAID require separately identified spare hardware and an accepted write plan.
+Ledger: docs/WORK_RECORD.md; ignored artifacts/reports/home-capacity/home-reference/; https://github.com/hypler-dev/OpenDrobo.
+```
+
+## Management, events and product documentation scope
+
+The user's follow-up requests authorize device-event history, unit and drive activity states, brand/model identification, and a complete management-feature layout alongside MCP, Console, volumes, SSD/cache and native sharing settings. Implemented controls must use exact recovered command identifiers and payloads, fresh opaque target binding and an explicit allowlist. Power operations require typed confirmation, no detected mounted Drobo filesystems, and the original service's non-forced safety/unmount path. This source work does not authorize testing power operations against the home data pack. Reset, format, firmware, rebuild and arbitrary command execution remain outside executable scope.
+
+The README becomes a product overview; developer and protocol details belong in linked technical documentation. Storage support must distinguish existing host mounts, device/pool management, and member reconstruction. Linux/Windows adapters, native EXT access, other RAID managers and BeyondRAID reconstruction are not delivered by a shared UI or metadata-only visibility. macOS accounts, folder permissions and ACLs remain authoritative; the Sharing page inspects configuration and opens native settings without enabling exports or editing permissions.
+
+## Drobo-only visual capacity and recorded history
+
+The user's latest steering removes non-Drobo local volumes from the app, requests clearer unit/drive graphics, a usable-capacity pie chart, closed-by-default advanced logical geometry, and capacity history charts from real observations or usable application logs. Device and UI runtime testing now targets the home Mac. Local synthetic UI testing has stopped; the temporary subscription fixture was closed and never accepted a command-channel request. Offline source/unit tests remain distinct from hardware/UI evidence.
+
+Implement Drobo-only mounted-volume and share scope using verified native provider bindings. Capacity history may store only opaque pool references, bounded model labels, timestamps and aggregate byte counters in private local state. It must not invent earlier readings, treat missing log data as zero, reinterpret an OS logical ceiling as usable capacity, or feed historical samples into Finder's live-statistics path. Checked original-log locations on the home Mac contained no usable capacity time series; this bounded inspection does not prove that no other vendor logs exist.
+
+## Final management and statistics evidence
+
+This packet starts from `8b3fc8a964b6783320bbf6b6d7b63d388bd91204` on `main`. It combines the original-service observer, unit/LUN deduplication, Drobo-only volumes/sharing metadata, bounded history/events/Console, optional read-only MCP, fixed GUI control availability, original-style enclosure/drive graphics, model-focused navigation/settings and product/developer documentation. The final navigation amendment removes the stretched Status dropdown and unrelated NAS configuration forms. Current component choices are System Information and Drive Information. All 14 pages are visible in Device, Activity, and Host & application groups. Only the exact selected 5D profile presents Dim Lights; unknown models receive an unavailable-profile state. Original name/redundancy/spindown/NAS setting contracts remain unimplemented.
+
+Validation and packages:
+
+- `make check`: **20/20 lanes PASS**, including **41 desktop backend**, **9 statistics**, **40 portable core**, **7 probe** and **29 Python** tests. Frontend typecheck and production build, Rust format checks, SDK/native policy/sanitizer suites, FSKit typecheck/direct checks and historical Swift reference checks also pass.
+- Intel: `python3 scripts/build_desktop.py --target x86_64-apple-darwin --without-fskit --output dist/home-reference-intel` — PASS. The macOS-14 preview contains no `.appex` or `.dext`; its strict signature and x86_64 architecture were verified on the home host.
+- Apple silicon: `python3 scripts/build_desktop.py --output dist/home-reference-arm64` — PASS. Its macOS-26 FSKit module remains packaged but inactive. No Apple-silicon Drobo hardware trial occurred.
+- Runtime source hashes stayed unchanged throughout final checks and both package builds. Subsequent edits are documentation/ignored receipts only.
+- Intel archive SHA-256: `53db3d58f8ac26100e42311c495adb6cbd2c28469e45074e3af5cc73d2110f7b`.
+- ARM64 archive SHA-256: `c846a90817d7da0ba59232775da597bbce92bde151165569645a82e66867c4b9`.
+
+Home-Mac evidence is a private Intel macOS 14.7.7 trial, not a public binary release. Final preview: `/Users/jeff/Applications/OpenDroboTrials/20261105-53db3d58f8ac/OpenDrobo.app`. Read-only checks report one physical enclosure, one protected 5D Thunderbolt pool, two mounted Journaled HFS+ LUNs and six slots: five HDDs plus mSATA SSD. Protected capacity is approximately 11.75 TB, used 3.75 TB and free 7.99 TB; OS filesystem-used accounting is approximately 3.76 TB and remains separate. The final CLI receipt contains 30 real retained observations. No fixed sample count or date range is promised; new readings are coalesced by the retention policy.
+
+The final bundle passes all **10 SDK MCP tool calls**, with matched JSON text/structured output, Drobo-only mounted volumes, one shared pool, device/drive display metadata, retained capacity history and mounted-volume power guards. Restart, shutdown and standby remain disabled while the Drobo volumes are mounted. The original DDService process/path remained unchanged across checks. No agent light, brightness, power, firmware, disk-pack or array command was sent. The agent did not change host sharing services, exports or permissions.
+
+The prior `90d1eb55905d` private preview provided direct home-screen observations of the protected-capacity pie, working Drive 3/cache selection, firmware/model data, SSD 96% life, six statistics cards, signed-change/utilization charts, real observation gaps and installed-drive capacities. Its Statistics view showed 27 real readings over 4 hr 30 min; those values describe that observation, not a permanent fixture. The final `53db3d58f8ac` preview was launched from its verified Finder directory and visibly shows all 14 navigation pages at 1120 × 800. Final Status/Settings interaction verification is pending because Screen Sharing's Control Screen mode was switched off; the agent requested the user's choice before restoring it. No complete VoiceOver, performance, minimum-window or runtime accessibility-preference audit is claimed.
+
+Fresh independent source reviews `statistics_ui_review` and `native_review` returned PASS for the final navigation/settings/statistics and documentation deltas. Statistics parser and robustness reviews also passed after invalid-type/oversized-value guards were added. Earlier source reviews covered native service/control binding, private-file boundaries, MCP framing and optional-artwork packaging; final UI edits did not change those backends. Root is the integration/build/host-test producer; `statistics_engine` used `gpt_worker`, statistics math reviewers used `gpt_reviewer`, UI review used `gpt_ui_review`, and documentation review used `gpt_reviewer`. These native roles are OpenAI, with configured `gpt-5.6-terra` pins. Earlier bounded reader/documentation roles use configured `gpt-5.6-luna`. Runtime model IDs are not exposed, so no observed-model match or token/cost saving is claimed. No GLM, Spark or retired local-model lane was used.
+
+The unresolved low-severity, high-confidence local-service authenticity finding and failed managed-report publication lane remain as recorded at the top. The unauthenticated loopback source is explicitly marked; it has not been fixed. Original firmware/BeyondRAID are unchanged. The original driver remains required; DriverKit hardware gates and byte-unit confirmation remain closed. FSKit is inactive, no new mount was made, and Finder's logical capacity is unchanged. Two-enclosure host RAID and capacity-aware block presentation remain untested research options, not support claims.
+
+Ignored receipts: `artifacts/reports/home-capacity/home-reference/validation.json`, `home-runtime.json`, `mcp-home-smoke.json`, `home-ui-observations-before-navigation.json`, associated logs and `artifacts/reports/desktop-checks/results.json`. Vendor binaries, firmware, extracted artwork, private host captures, packages and toolchains remain excluded from Git. No unrelated working-tree dirt was present.
+
+The containing source commit identifies this checkpoint; exact public-main equality is verified during the authorized push closeout. No tag, public app archive, notarization, installer release, driver installation or extension activation is authorized by this source publication. Next work is bounded telemetry-schema recovery and authenticated service identity; hardware/host-RAID experiments require a named spare-unit plan.
+
+Exact source paths in this packet (35):
+
+```text
+README.md
+desktop/src-tauri/Cargo.lock
+desktop/src-tauri/Cargo.toml
+desktop/src-tauri/src/capacity_history.rs
+desktop/src-tauri/src/controls.rs
+desktop/src-tauri/src/device_events.rs
+desktop/src-tauri/src/diagnostics.rs
+desktop/src-tauri/src/main.rs
+desktop/src-tauri/src/mcp.rs
+desktop/src-tauri/src/service.rs
+desktop/src-tauri/src/system.rs
+desktop/src/main.ts
+desktop/src/statistics.ts
+desktop/src/styles.css
+desktop/tests/statistics.test.mjs
+docs/CAPABILITIES_AND_BACKLOG.md
+docs/CAPACITY_REPORTING.md
+docs/DEVELOPER_GUIDE.md
+docs/FIRMWARE_CAPABILITIES.md
+docs/MANAGEMENT_FEATURES.md
+docs/MCP.md
+docs/STORAGE_SUPPORT.md
+docs/WORK_RECORD.md
+platform/macos/include/OpenDroboTransport.h
+platform/macos/transport/CapacityWire.c
+platform/macos/transport/CapacityWire.h
+platform/macos/transport/Checks.c
+platform/macos/transport/OpenDroboTransport.c
+platform/macos/transport/PoolDiagnostic.h
+platform/macos/transport/PoolDiagnosticProbe.c
+research/MACOS_MANAGEMENT_ABI.md
+scripts/build_desktop.py
+scripts/build_pool_probe.py
+scripts/check_desktop.py
+tests/test_desktop_artwork.py
 ```

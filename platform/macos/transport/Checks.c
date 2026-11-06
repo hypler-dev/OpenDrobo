@@ -15,7 +15,11 @@ static size_t frame(uint8_t *out, uint8_t subpage, size_t body, size_t descripto
     return total;
 }
 
-typedef struct { int step; int capacity_reads; int failed_selector; int multi_lun; int short_reply; int close_failure; } Mock;
+typedef struct {
+    int step, capacity_reads, failed_selector, multi_lun, short_reply, close_failure;
+    int bad_subpage, bad_lun_body, bad_capacity_body, bad_descriptors;
+    int use_lun_count, reported_lun_count, failed_subpage;
+} Mock;
 static int32_t call(void *context, uint32_t selector, const void *input, size_t input_size, void *output, size_t *output_size) {
     Mock *mock = context;
     ++mock->step;
@@ -31,13 +35,92 @@ static int32_t call(void *context, uint32_t selector, const void *input, size_t 
     assert(request->cdb[7] == 2 && request->cdb[8] == 0 && request->cdb[9] == 0);
     assert(request->page == 0x3a && request->subpage == request->cdb[3]);
     assert(request->subpage == 4 || request->subpage == 2);
+    if (request->subpage == mock->failed_subpage) return -779;
     uint8_t *response = (uint8_t *)(uintptr_t)request->address;
-    size_t bytes = frame(response, request->subpage, request->subpage == 4 ? 1 : 56, 0);
-    if (request->subpage == 4) response[12] = mock->multi_lun ? 2 : 1;
+    size_t body = request->subpage == 4 ? 1 : 56;
+    if (request->subpage == 4 && mock->bad_lun_body) body = 0;
+    if (request->subpage == 2 && mock->bad_capacity_body) body = 33;
+    size_t bytes = frame(response, request->subpage, body, 0);
+    if (mock->bad_subpage) response[9] = 9;
+    if (mock->bad_descriptors) response[7] = 255;
+    if (request->subpage == 4)
+        response[12] = mock->use_lun_count ? mock->reported_lun_count : mock->multi_lun ? 2 : 1;
     else ++mock->capacity_reads;
     *(uint32_t *)output = (uint32_t)bytes;
     if (mock->short_reply) *output_size = 0;
     return 0;
+}
+
+static void expect_zeroed(const ODPoolDiagnosticWire *diagnostic) {
+    ODPoolDiagnosticWire zero = {0};
+    assert(!memcmp(diagnostic, &zero, sizeof(zero)));
+}
+
+static void pool_diagnostic_checks(void) {
+    ODPoolDiagnosticWire diagnostic;
+    memset(&diagnostic, 0xa5, sizeof(diagnostic));
+    assert(od_run_pool_diagnostic(NULL, NULL, &diagnostic) == -10001);
+    expect_zeroed(&diagnostic);
+    Mock mock = {.failed_selector = -1, .multi_lun = 1};
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == 0);
+    assert(mock.step == 4 && mock.capacity_reads == 1);
+    assert(diagnostic.reported_lun_count == 2 && diagnostic.lun_page_length == 5);
+    assert(diagnostic.capacity_page_length == 60 && diagnostic.lun_page[0] == 0x7a);
+    assert(diagnostic.lun_page[1] == 4 && diagnostic.capacity_page[0] == 0x7a);
+    assert(diagnostic.capacity_page[1] == 2);
+
+    mock = (Mock){.failed_selector = -1, .use_lun_count = 1, .reported_lun_count = 32};
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == 0);
+    assert(diagnostic.reported_lun_count == 32 && mock.step == 4 && mock.capacity_reads == 1);
+
+    mock = (Mock){.failed_selector = -1};
+    memset(&diagnostic, 0xa5, sizeof(diagnostic));
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == 0);
+    assert(diagnostic.reported_lun_count == 1 && mock.step == 4 && mock.capacity_reads == 1);
+    mock = (Mock){.failed_selector = -1, .use_lun_count = 1, .reported_lun_count = 0};
+    memset(&diagnostic, 0xa5, sizeof(diagnostic));
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == -10007);
+    assert(mock.step == 3 && !mock.capacity_reads); expect_zeroed(&diagnostic);
+    mock = (Mock){.failed_selector = -1, .bad_descriptors = 1};
+    memset(&diagnostic, 0xa5, sizeof(diagnostic));
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == -10004);
+    assert(mock.step == 3 && !mock.capacity_reads); expect_zeroed(&diagnostic);
+    mock = (Mock){.failed_selector = -1, .use_lun_count = 1, .reported_lun_count = 33};
+    memset(&diagnostic, 0xa5, sizeof(diagnostic));
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == -10007);
+    assert(mock.step == 3 && !mock.capacity_reads); expect_zeroed(&diagnostic);
+    mock = (Mock){.failed_selector = -1, .bad_lun_body = 1};
+    memset(&diagnostic, 0xa5, sizeof(diagnostic));
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == -10007);
+    assert(mock.step == 3 && !mock.capacity_reads); expect_zeroed(&diagnostic);
+    mock = (Mock){.failed_selector = -1, .bad_subpage = 1};
+    memset(&diagnostic, 0xa5, sizeof(diagnostic));
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == -10005);
+    assert(mock.step == 3 && !mock.capacity_reads); expect_zeroed(&diagnostic);
+    mock = (Mock){.failed_selector = -1, .bad_capacity_body = 1};
+    memset(&diagnostic, 0xa5, sizeof(diagnostic));
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == -10005);
+    assert(mock.step == 4 && mock.capacity_reads == 1); expect_zeroed(&diagnostic);
+    mock = (Mock){.failed_selector = 7};
+    memset(&diagnostic, 0xa5, sizeof(diagnostic));
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == -777);
+    assert(mock.step == 3); expect_zeroed(&diagnostic);
+    mock = (Mock){.failed_selector = -1, .failed_subpage = 2};
+    memset(&diagnostic, 0xa5, sizeof(diagnostic));
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == -779);
+    assert(mock.step == 4); expect_zeroed(&diagnostic);
+    mock = (Mock){.failed_selector = -1, .short_reply = 1};
+    memset(&diagnostic, 0xa5, sizeof(diagnostic));
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == -10004);
+    assert(mock.step == 3 && !mock.capacity_reads); expect_zeroed(&diagnostic);
+    mock = (Mock){.failed_selector = 0};
+    memset(&diagnostic, 0xa5, sizeof(diagnostic));
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == -777);
+    assert(mock.step == 1); expect_zeroed(&diagnostic);
+    mock = (Mock){.failed_selector = -1, .close_failure = 1};
+    memset(&diagnostic, 0xa5, sizeof(diagnostic));
+    assert(od_run_pool_diagnostic(call, &mock, &diagnostic) == -778);
+    assert(mock.step == 4 && mock.capacity_reads == 1); expect_zeroed(&diagnostic);
 }
 
 int main(void) {
@@ -78,5 +161,6 @@ int main(void) {
     assert(od_run_capacity_query(call, &mock, page, 60, &length) == -778 && length == 0);
     mock = (Mock){.failed_selector = -1};
     assert(od_run_capacity_query(call, &mock, page, 59, &length) != 0 && mock.step == 0);
+    pool_diagnostic_checks();
     puts("PASS: bounded MODE SENSE framing, LUN scope, read-only command allowlist, and connection cleanup");
 }

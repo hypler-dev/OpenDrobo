@@ -1,30 +1,34 @@
 # OpenDrobo
 
-OpenDrobo is an independent effort to preserve Drobo management and investigate BeyondRAID interoperability. It uses a portable Rust core, a shared Tauri interface, and a macOS read-only bridge to the original management driver.
+OpenDrobo is an independent management console for Drobo storage, built around a portable core and shared interface. It brings device discovery, protected-pool capacity, mounted-volume statistics, drive and SSD telemetry, events, sharing visibility, and guarded management controls into one dark glass interface.
 
-The interface follows Dashboard navigation with dark glass surfaces, animated selection glow, and optional locally extracted artwork. It discovers registry endpoints, performs bounded read-only capacity queries, and checks releases from [hypler-dev/OpenDrobo](https://github.com/hypler-dev/OpenDrobo). It does not install a driver, replace the Thunderbolt PCI/DMA path, write device state, flash firmware, or implement BeyondRAID recovery.
+The first supported hardware path is a Drobo 5D over Thunderbolt to macOS. Broader 5D-class compatibility remains unverified. The console identifies enclosure and model, groups multiple logical volumes under one physical unit when host exposes that relationship, and keeps pool capacity separate from Finder filesystem view. It can show protected capacity recovered from original management service, OS-reported HFS+ usage, disk slots, and SSD life data when available.
 
-## Build and check
+OpenDrobo is not affiliated with Drobo. It is source-first software. No vendor binaries, firmware, artwork, credentials, or private host captures are distributed.
 
-Tested local target: Apple silicon on macOS 26 with Xcode 26, Python 3.11+, Node 24+, npm, and Rust 1.98.0. Workspace-pinned ARM tools are used when present under `tools/`.
+## What you can do
 
-The shared application targets macOS 14 or later. The optional ARM64 FSKit
-research extension still requires macOS 26. An Intel preview omits that extension:
+- Discover Drobo units and show brand, model, reported firmware, drive make/model, connection, enclosure state, and drive-slot presence.
+- View protected pool total, used, and free bytes alongside each logical volume's host-reported total and usage.
+- Inspect SSD capacity and reported life remaining without inventing cache usage when device does not expose it.
+- Review bounded application and device events, console records, service state, time-range capacity statistics, allocation changes, recording gaps, and Drobo sharing metadata.
+- Inspect native macOS SMB/NFS service status, list SMB exports whose configured paths fall beneath Drobo mount roots, and open macOS File Sharing settings. This path classification does not resolve symlink targets or grant file access. Non-Drobo volumes and unrelated SMB exports stay outside this product flow; macOS accounts and ACLs remain authoritative.
+- Connect a trusted local assistant or script through optional read-only MCP for inventory, capacity, pool, storage, sharing, capabilities, console, events, control availability, and capacity history. See the [MCP guide](docs/MCP.md) for data access and trust boundaries.
+- View experimental light/identify presets and power controls recovered from the original interface. They are offline-recovered and mock-tested only; no live hardware light or power control has been validated.
 
-```sh
-python3 scripts/build_desktop.py --target x86_64-apple-darwin --without-fskit --output dist/home-intel
-```
+## Current support
 
-Cross-compilation requires the matching Rust standard-library target. The
-`--output` directory keeps this preview separate from the default ARM64 bundle.
-The default packaging path includes FSKit and requires a native ARM64 build;
-Intel and other cross-target previews must use `--without-fskit`.
+macOS 14 or later is active desktop target. Intel macOS 14 and Apple silicon builds use shared Rust/Tauri application. Original Drobo management driver remains required for current Thunderbolt management path. Replacement DriverKit and filesystem research components compile or test in isolation; they are not installed, activated, or used to change Finder geometry.
 
-The Intel preview has been launched on macOS 14.7.7. Its registry-only scan
-found two `Drobo 5D - TB` Thunderbolt management endpoints with the original
-driver ready. Process/window metadata confirmed an active 1120 × 800 window;
-screen contents were not inspected. Discovery does not verify two physical
-enclosures, protected-capacity units, or Finder reporting.
+Linux and Windows are planned adapter targets. Drobo Thunderbolt transport adapters, installers, device-management backends, and OpenDrobo host-volume adapters remain unimplemented there. Host-mounted filesystem support comes from each operating system, not OpenDrobo.
+
+## Filesystem and RAID support
+
+OpenDrobo currently reports Drobo volumes that macOS has mounted, using native host statistics and verified Drobo binding. HFS+ and APFS are visible when mounted on macOS. Non-Drobo volumes, generic host filesystem inventory, and unrelated SMB exports are outside current product flow.
+
+OpenDrobo can inspect Drobo management data and BeyondRAID research, but it does not currently assemble member disks, reconstruct an array, format a disk pack, or repair a damaged volume. Other array providers and RAID formats are future adapter work, not current OpenDrobo support. Support matrix in [docs/STORAGE_SUPPORT.md](docs/STORAGE_SUPPORT.md) records boundaries.
+
+## Get started
 
 ```sh
 npm --prefix desktop ci
@@ -33,75 +37,8 @@ make build
 open dist/OpenDrobo.app
 ```
 
-Frontend checks can also run directly with `npm --prefix desktop ci`, then `npm --prefix desktop run check` and `npm --prefix desktop run build`.
+Run `--scan-json` for registry-only discovery. Run `--mcp-stdio` to expose fixed read-only MCP service to a local MCP client. Release checks are manual and point only to releases published in this repository; there is no automatic download or installation.
 
-`make check` runs portable Rust tests, frontend type/build checks, desktop policy tests, native transport sanitizer checks, and direct macOS FSKit checks. `make build` creates a local debug Tauri app, bundles an inactive `OpenDroboFS.appex`, and ad-hoc signs the result. It does not install or activate the extension. The build is not notarized or ready for public distribution.
+Read [docs/MANAGEMENT_FEATURES.md](docs/MANAGEMENT_FEATURES.md) for management surface, [docs/STORAGE_SUPPORT.md](docs/STORAGE_SUPPORT.md) for filesystem and RAID boundaries, and [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for architecture, build, protocol, testing, and contribution details. Capacity evidence and Finder limits live in [docs/CAPACITY_REPORTING.md](docs/CAPACITY_REPORTING.md). [Firmware capabilities](docs/FIRMWARE_CAPABILITIES.md) explains further telemetry opportunities and the limits of using macOS RAID with Drobo.
 
-The registry-only command does not open a device or send management commands:
-
-```sh
-dist/OpenDrobo.app/Contents/MacOS/opendrobo-desktop --scan-json
-```
-
-Release checks are opt-in. They query only this project's latest GitHub release, reject drafts, prereleases, malformed versions, and links outside this repository, then open a validated release page for manual download. There is no automatic download or installation.
-
-Controlled lab capture uses `--capture-capacity-json <registry-id>`. It returns the raw page as hexadecimal with an unverified-units label. No capacity number is presented as physical bytes until a named enclosure and spare-unit test establish units, device identity, and LUN scope.
-
-## Capacity and Finder boundary
-
-The Rust decoder accepts the recovered `0x7a/0x02` protected-capacity record and rejects truncation, stale data, inconsistent counts, unknown scope, and unconfirmed units. The macOS bridge uses only the recovered MODE SENSE path through the original user client: open, check LUN information, read the capacity page, and close. It rejects multiple LUNs and ambiguous physical-device scope.
-
-The FSKit module implements an initial separate read-only filesystem view. It binds before and after opening the backing path, keeps held descriptors tied to their original inodes, confines symlinks, and withholds capacity statistics when units are unverified. It is compiled and directly tested, but has not been activated, mounted, or validated in Finder. It does not override an existing Apple HFS+ mount or change disk geometry. Swift is retained for this macOS-specific extension; the older SwiftUI app and isolated Swift capacity experiment remain reference code.
-
-## Platform scope
-
-The Rust core and Tauri UI are intended for Linux and Windows. Their device adapters, filesystem modules, installers, and hardware compatibility are not implemented or tested. The macOS bridge still depends on the original Drobo management driver; this repository does not ship a replacement kernel or DriverKit storage driver.
-
-## Independent offline inspection
-
-New source components decode copied Thunderbolt port/queue frames and inspect
-an explicitly located BeyondRAID RMR header candidate. The offline probe does
-not require a Drobo driver. It reads regular files only; it does not scan live
-devices, map PCI memory, mount volumes, reconstruct array data, or establish
-protected capacity.
-
-```sh
-cargo build --locked -p opendrobo-probe
-cargo run --locked -p opendrobo-probe -- port path/to/copied-bar1.bin
-cargo run --locked -p opendrobo-probe -- rmr path/to/member-image.bin 0xOFFSET
-```
-
-Replace `0xOFFSET` with an independently established byte offset. The tool
-reads exactly one 8192-byte RMR window; it does not discover member locations
-or generations. An unbound result remains a candidate with unverified identity
-and `arrayValidated: false`. Port snapshots report virtual LUN ceilings and
-keep protected capacity unavailable. Native execution has been checked only
-on the local Apple silicon Mac. The probe rejects unverified host platforms
-until their regular-file opening policy is implemented.
-
-The non-loading DriverKit research now includes a real IIG SCSI controller
-subclass, target and asynchronous task callbacks, separate version-4 storage and
-management queues, and inline logical-geometry responses. Twelve ARM64 objects
-compile/link; seven sanitizer suites check synthetic mapping, framing, callback
-ownership, completion, graceful drain, timeout, and removal behavior.
-
-```sh
-python3 scripts/build_driverkit.py
-```
-
-This creates a local research artifact at
-`artifacts/driverkit/OpenDroboStorage.dext`. Hardware execution is disabled in
-source before PCI open or framework startup; no runtime setting or plist value
-enables it. Original 5D bridge firmware confirms that the selected storage read
-mode uses the inline SGL; the direct-buffer field stays inactive. Graceful stop
-now keeps completion polling active until owned tasks and DMA leases finish.
-Timeout/removal still quarantine resources. Global hardware quiescence, other
-firmware paths, full SCSI behavior, power/reset handling, provisioning, and
-hardware validation remain open. The bundle is not
-embedded, installed, activated, or published. The application still uses the
-original driver and Finder reporting is unchanged. See the
-[transport findings](research/THUNDERBOLT_TRANSPORT.md) for evidence and limits.
-
-Original installers, firmware, driver binaries, extracted artwork, decompilation output, and tool runtimes remain ignored local research artifacts. Optional artwork is local input recorded in [research/vendor-artwork.json](research/vendor-artwork.json); redistribution rights are unverified, so vendor assets are excluded from public source. Builds without local artwork use project-owned fallbacks. OpenDrobo is not affiliated with Drobo or its successors.
-
-See the [work record](docs/WORK_RECORD.md), [capacity reporting](docs/CAPACITY_REPORTING.md), [recovered management ABI](research/MACOS_MANAGEMENT_ABI.md), [independent transport recovery](research/THUNDERBOLT_TRANSPORT.md), [RMR layout](research/BEYONDRAID_LAYOUT.md), [original-software findings](research/REVERSE_ENGINEERING.md), and [earlier Thunderbolt/BeyondRAID research](research/STATIC_RECOVERY.md).
+OpenDrobo remains conservative around hardware. It does not install drivers, activate extensions, mount filesystems, flash firmware, reset arrays, format disks, erase data, or claim Finder support without hardware and filesystem evidence.

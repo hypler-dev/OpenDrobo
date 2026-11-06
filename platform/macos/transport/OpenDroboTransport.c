@@ -1,5 +1,6 @@
 #include "../include/OpenDroboTransport.h"
 #include "CapacityWire.h"
+#include "PoolDiagnostic.h"
 #include <CoreFoundation/CoreFoundation.h>
 #include <DiskArbitration/DiskArbitration.h>
 #include <IOKit/IOKitLib.h>
@@ -100,11 +101,15 @@ static io_service_t driver_for_media(io_service_t media) {
     return found;
 }
 
+static uint64_t physical_key(uint64_t registry_id);
+
 int32_t od_list_devices(ODNativeDevice *devices, size_t limit, size_t *count) {
     if (!count || (!devices && limit)) return -10001;
     *count = 0;
     uint64_t used_pci[128] = {0};
+    uint64_t physical_groups[128] = {0};
     size_t used = 0;
+    size_t grouped = 0;
     io_iterator_t iterator = 0;
     kern_return_t result = IOServiceGetMatchingServices(kIOMainPortDefault,
         IOServiceMatching(driver_class), &iterator);
@@ -113,6 +118,12 @@ int32_t od_list_devices(ODNativeDevice *devices, size_t limit, size_t *count) {
     while ((entry = IOIteratorNext(iterator))) {
         uint64_t pci = 0, identifier = 0;
         if (known_identity(entry, &pci) && IORegistryEntryGetRegistryEntryID(entry, &identifier) == KERN_SUCCESS) {
+            uint64_t group = physical_key(identifier);
+            int duplicate = 0;
+            for (size_t i = 0; group && i < grouped; ++i)
+                if (physical_groups[i] == group) duplicate = 1;
+            if (duplicate) { IOObjectRelease(entry); continue; }
+            if (group && grouped < 128) physical_groups[grouped++] = group;
             if (*count < limit) {
                 ODNativeDevice *device = &devices[*count];
                 memset(device, 0, sizeof(*device));
@@ -272,6 +283,107 @@ int32_t od_device_scope(uint64_t registry_id, char *mount_path, size_t path_limi
                 memcpy(mount_path, mounts[i].f_mntonname, strlen(mounts[i].f_mntonname) + 1);
             }
         }
+    }
+    CFRelease(session);
+    free(mounts);
+    return 0;
+}
+
+int32_t od_capture_pool_diagnostic(uint64_t registry_id, ODNativePoolDiagnostic *output) {
+    if (!output) return -10001;
+    memset(output, 0, sizeof(*output));
+    if (!registry_id) return -10001;
+    uint64_t group = physical_key(registry_id);
+    if (!group) return -10003;
+    uint32_t volume_count = 0;
+    int32_t result = od_device_scope(registry_id, NULL, 0, &volume_count);
+    if (result) return result;
+
+    io_service_t service = IOServiceGetMatchingService(kIOMainPortDefault,
+        IORegistryEntryIDMatching(registry_id));
+    if (!service) return -10002;
+    if (!IOObjectConformsTo(service, driver_class) || !known_identity(service, NULL)) {
+        IOObjectRelease(service);
+        return -10003;
+    }
+    io_connect_t connection = 0;
+    result = IOServiceOpen(service, mach_task_self(), 0, &connection);
+    IOObjectRelease(service);
+    if (result) return result;
+    ODPoolDiagnosticWire wire = {0};
+    result = od_run_pool_diagnostic(native_call, &connection, &wire);
+    kern_return_t close_result = IOServiceClose(connection);
+    if (result) return result;
+    if (close_result) return close_result;
+
+    uint32_t after_count = 0;
+    result = od_device_scope(registry_id, NULL, 0, &after_count);
+    if (result) return result;
+    if (physical_key(registry_id) != group || after_count != volume_count) return -10009;
+    output->registry_id = registry_id;
+    output->physical_registry_group = group;
+    output->mounted_volume_count = volume_count;
+    output->wire = wire;
+    return 0;
+}
+
+int32_t od_list_volumes(ODNativeVolume *volumes, size_t limit, size_t *count) {
+    if (!count || (!volumes && limit)) return -10001;
+    *count = 0;
+    int needed = getfsstat(NULL, 0, MNT_NOWAIT);
+    if (needed < 0 || needed > 8192) return -10008;
+    size_t allocated = (size_t)needed + 16;
+    struct statfs *mounts = calloc(allocated, sizeof(*mounts));
+    if (!mounts) return -10008;
+    int found = getfsstat(mounts, (int)(allocated * sizeof(*mounts)), MNT_NOWAIT);
+    if (found < 0 || (size_t)found >= allocated) { free(mounts); return -10008; }
+    DASessionRef session = DASessionCreate(NULL);
+    if (!session) { free(mounts); return -10003; }
+    for (int i = 0; i < found; ++i) {
+        const struct statfs *fs = mounts + i;
+        const char *path = fs->f_mntonname;
+        if (strcmp(path, "/") && strncmp(path, "/Volumes/", 9)) continue;
+        if (*count < limit) {
+            ODNativeVolume *volume = volumes + *count;
+            memset(volume, 0, sizeof(*volume));
+            volume->registry_id = disk_device(session, path);
+            volume->read_only = (fs->f_flags & MNT_RDONLY) != 0;
+            snprintf(volume->id, sizeof(volume->id), "%08x-%08x",
+                (uint32_t)fs->f_fsid.val[0], (uint32_t)fs->f_fsid.val[1]);
+            snprintf(volume->name, sizeof(volume->name), "%s",
+                !strcmp(path, "/") ? "System volume" : strrchr(path, '/') + 1);
+            snprintf(volume->filesystem, sizeof(volume->filesystem), "%s", fs->f_fstypename);
+            snprintf(volume->mount_path, sizeof(volume->mount_path), "%s", path);
+            uint64_t size = fs->f_bsize;
+            if (size && fs->f_bfree <= fs->f_blocks && fs->f_bavail <= fs->f_bfree &&
+                fs->f_blocks <= UINT64_MAX / size) {
+                volume->statistics_available = 1;
+                volume->total_bytes = fs->f_blocks * size;
+                volume->used_bytes = (fs->f_blocks - fs->f_bfree) * size;
+                volume->available_bytes = fs->f_bavail * size;
+            }
+        }
+        ++*count;
+    }
+    CFRelease(session);
+    free(mounts);
+    return *count > limit ? -10006 : 0;
+}
+
+int32_t od_mounted_drobo_count(uint32_t *count) {
+    if (!count) return -10001;
+    *count = 0;
+    int needed = getfsstat(NULL, 0, MNT_NOWAIT);
+    if (needed < 0 || needed > 8192) return -10008;
+    size_t allocated = (size_t)needed + 16;
+    struct statfs *mounts = calloc(allocated, sizeof(*mounts));
+    if (!mounts) return -10008;
+    int found = getfsstat(mounts, (int)(allocated * sizeof(*mounts)), MNT_NOWAIT);
+    if (found < 0 || (size_t)found >= allocated) { free(mounts); return -10008; }
+    DASessionRef session = DASessionCreate(NULL);
+    if (!session) { free(mounts); return -10003; }
+    for (int i = 0; i < found; ++i) {
+        if (disk_device(session, mounts[i].f_mntonname)) ++*count;
     }
     CFRelease(session);
     free(mounts);
