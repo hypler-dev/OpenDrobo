@@ -35,6 +35,8 @@ def main() -> int:
         check("probe-format", ["cargo", "fmt", "--check", "-p", "opendrobo-probe"], target="cargo-target")
         check("probe-tests", ["cargo", "test", "--locked", "-p", "opendrobo-probe"], target="cargo-target")
         check("statistics-tests", ["node", "--experimental-strip-types", "--test", "tests/statistics.test.mjs"], cwd=ROOT / "desktop")
+        check("status-selection-tests", ["node", "--experimental-strip-types", "--test", "tests/status_selection.test.mjs"], cwd=ROOT / "desktop")
+        check("drive-indicator-tests", ["node", "--experimental-strip-types", "--test", "tests/drive_indicator.test.mjs"], cwd=ROOT / "desktop")
         check("frontend-types", ["npm", "run", "check"], cwd=ROOT / "desktop")
         check("frontend-build", ["npm", "run", "build"], cwd=ROOT / "desktop")
         check("desktop-format", ["cargo", "fmt", "--manifest-path", "desktop/src-tauri/Cargo.toml", "--check"])

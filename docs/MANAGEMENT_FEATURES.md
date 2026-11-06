@@ -1,13 +1,13 @@
 # Management features
 
-Interface keeps product state, host state, and command availability visible at same time. Every unit and drive can be shown as present/active, absent/inactive, stale, or unknown. Raw numeric status fields remain available where original service supplies them; OpenDrobo does not turn undocumented bit masks into reassuring health labels.
+Interface keeps product state, host state, and command availability visible at same time. Every unit and drive can be shown as present/active, absent/inactive, stale, or unknown. Raw numeric status fields remain available where original service supplies them; OpenDrobo decodes the recovered drive-LED selector separately from presence; remaining undocumented bit masks do not become reassuring health labels.
 
 ## Product surface
 
 The main views are:
 
 - **All Drobos:** primary physical-unit inventory, brand/model, connection, active/inactive state, and selection.
-- **Status:** visible System Information and Drive Information buttons, enclosure state, connection freshness, disk-slot presence/front-drive-bay state, raw unit/slot state, SSD capacity/life, and last observation time. Temperature is not currently exposed by the app.
+- **Status:** automatic single-unit display or selectable enclosure icons for multiple units, visible System Information and Drive Information buttons, enclosure state, connection freshness, disk-slot presence/front-drive-bay state, raw unit/slot state, SSD capacity/life, and last observation time. The 5D front-bay indicators support reported green, amber, red, alternating green/amber and flashing red codes, with text labels and gray stale/unknown states. This is not a complete health decoder. Temperature is not currently exposed by the app.
 - **Capacity:** protected pool total/used/free, separate OS-used comparison, installed-drive view, pool freshness, and a usable-capacity pie. The 64 TiB logical ceiling stays Advanced metadata, never protected capacity.
 - **Statistics:** selectable time ranges, protected/free/OS-used trends, allocation changes, utilization, recording gaps, current drive capacities, SSD life and retained session-event counts.
 - **Volumes:** verified Drobo-mounted host totals, used/free bytes, filesystem type, mount path, read-only state, and Drobo provider identity. Non-Drobo volumes are not shown.
@@ -17,7 +17,7 @@ The main views are:
 - **Tools / Reference:** original operation ordering and a separate command catalogue with explicit availability and safety state.
 - **Drobo Settings:** the selected device's verified settings profile. The exact 5D profile presents light settings using the matching control target. NAS network/account/share forms are not shown for this Thunderbolt enclosure. Unknown models receive an explicit unavailable-profile state.
 
-Navigation uses three always-visible groups: Device; Activity; and Host & application. Events, Statistics, Console, native host Sharing, MCP and Reference require no Advanced disclosure. Status component choices are compact visible buttons rather than a full-width dropdown. Model-specific settings require an explicit current-device selection; no settings target is inferred. Original NAS settings remain research references, not fake forms on an unrelated DAS model. This is an adaptation of the original Dashboard hierarchy, not a claim of complete functional parity.
+Navigation uses three always-visible groups: Device; Activity; and Host & application. Events, Statistics, Console, native host Sharing, MCP and Reference require no Advanced disclosure. Status component choices are compact visible buttons rather than a full-width dropdown. Status may automatically choose a sole reported pool for display. Model-specific settings still require a separately selected matching control target; display selection does not grant control authority. Original NAS settings remain research references, not fake forms on an unrelated DAS model. This is an adaptation of the original Dashboard hierarchy, not a claim of complete functional parity.
 
 Status and capacity cards use device/drive graphics with allocated, used, and free SVG donut segments. A 64 TiB logical ceiling remains technical metadata, not protected-pool capacity. Raw status and other implementation fields stay in closed technical-detail disclosures. Those disclosures do not hide application navigation or component choices.
 

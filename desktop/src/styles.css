@@ -205,6 +205,28 @@ html, body, #app { block-size: 100%; overflow: hidden; }
 .field-label select { block-size: 36px; align-self: start; line-height: 18px; }
 .status-view-options { display: flex; flex: 0 0 auto; align-items: center; flex-wrap: wrap; gap: 8px; }
 .status-view-options > .segmented { max-width: 100%; flex-wrap: wrap; }
+.status-device-picker { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 12px; }
+.status-device-choice { display: grid; justify-items: center; align-content: start; gap: 7px; width: 150px; padding: 12px; border-radius: 12px; color: #dcecf5; text-align: center; }
+.status-device-choice .unit-portrait, .status-device-choice .device-artwork { width: 74px; height: 92px; }
+.status-device-choice .unit-portrait img { max-width: 74px; max-height: 92px; }
+.status-device-choice strong { font-size: 12px; }
+.status-device-choice small { color: #a2b7c7; font-size: 10px; }
+.status-device-choice[aria-pressed="true"] { border-color: #89e7f5; box-shadow: inset 0 0 18px #54d9f51c, 0 0 14px #52d9ef33; }
+.front-bay[data-led]::after { background: #737e8b; box-shadow: none; }
+.front-bay[data-led="green"]::after { background: #53e67b; box-shadow: 0 0 8px #53e67b85; }
+.front-bay[data-led="amber"]::after { background: #ffbf48; box-shadow: 0 0 8px #ffbf4885; }
+.front-bay[data-led="red"]::after, .front-bay[data-led="red-flash"]::after { background: #ff5a62; box-shadow: 0 0 8px #ff5a6285; }
+.front-bay[data-led="protecting"]::after { animation: drive-protection 2s step-end infinite; }
+.front-bay[data-led="red-flash"]::after { animation: drive-fault 2s step-end infinite; }
+@keyframes drive-protection { 0%, 100% { background: #53e67b; box-shadow: 0 0 8px #53e67b85; } 50% { background: #ffbf48; box-shadow: 0 0 8px #ffbf4885; } }
+@keyframes drive-fault { 0%, 100% { opacity: 1; } 50% { opacity: .18; } }
+.drive-led-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 12px; max-width: 310px; font-size: 10px; color: #becbd7; }
+.drive-led-legend span::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: #737e8b; }
+.drive-led-legend [data-led="green"]::before { background: #53e67b; }
+.drive-led-legend [data-led="amber"]::before { background: #ffbf48; }
+.drive-led-legend [data-led="red"]::before, .drive-led-legend [data-led="red-flash"]::before { background: #ff5a62; }
+.drive-led-legend [data-led="protecting"]::before { background: linear-gradient(90deg, #53e67b 50%, #ffbf48 50%); }
+@media (prefers-reduced-motion: reduce) { .front-bay[data-led="protecting"]::after { animation: none !important; background: linear-gradient(#53e67b 50%, #ffbf48 50%); }.front-bay[data-led="red-flash"]::after { animation: none !important; opacity: 1; } }
 .device-settings-model { margin: 0; color: #c4d7e3; font-size: 13px; }
 .device-settings-layout { display: grid; grid-template-columns: minmax(0, 620px); align-items: start; gap: 16px; }
 .device-settings-layout .led-settings { margin-top: 0; }

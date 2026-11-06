@@ -44,7 +44,7 @@ make check
 make build
 ```
 
-`make check` currently runs 20 lanes: Rust tests, frontend type/build checks, desktop policy tests, nine exact-capacity statistics tests, native transport sanitizer checks, DriverKit policy checks, and direct FSKit checks. These tests do not activate a driver, mount a filesystem, or send commands to a Drobo.
+`make check` currently runs 22 lanes: Rust tests, frontend type/build checks, desktop policy tests, nine exact-capacity statistics tests, six Status-selection and identity-label tests, four drive-indicator decoder tests, native transport sanitizer checks, DriverKit policy checks, and direct FSKit checks. These tests do not activate a driver, mount a filesystem, or send commands to a Drobo.
 
 The default app target is macOS 14. The optional FSKit module and its direct checks require macOS 26 SDK/runtime support; it remains inactive. Build and test the app14 path separately from the FSKit research path.
 

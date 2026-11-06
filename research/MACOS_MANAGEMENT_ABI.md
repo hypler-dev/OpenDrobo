@@ -87,3 +87,21 @@ The `TMCmdNames` table at `0x1004cf6e0` establishes command identifiers. `SetDim
 Mock tests check framing, fixed parameters, target/range rejection, non-forced flags and reply validation. No light-setting or power command has been tested on the home pack. Service acceptance does not prove the hardware transition. Partial send, malformed reply or timeout produces unknown outcome; never retry automatically. Reset, format, firmware, repair/rebuild, shares/users and arbitrary original command routes are not executable.
 
 Ignored exact evidence is under `artifacts/reports/home-capacity/service/` and `dashboard-controls/`; it is not redistributed as vendor source. See the product [management surface](../docs/MANAGEMENT_FEATURES.md), [developer guide](../docs/DEVELOPER_GUIDE.md), and [storage matrix](../docs/STORAGE_SUPPORT.md).
+
+## Dashboard per-slot LED rendering
+
+The shipped x86_64 Dashboard SHA-256 `4abe55422533ed9ca2220927cdbd26dd98c9e2f4a1d411224ccc9aed546e5d64` contains named `SlotStatus` constants in its `__TEXT` segment (VM base `0x100000000`, file offset zero):
+
+| Constant | Virtual address | Value |
+| --- | --- | --- |
+| `LEDYellowOn` | `0x10041c744` | 2 |
+| `LEDFlashRed` | `0x10041c748` | 6 |
+| `LEDRedOn` | `0x10041c74c` | 1 |
+| `LEDFlashYellowGreen` | `0x10041c750` | 4 |
+| `LEDGreenOn` | `0x10041c754` | 3 |
+
+`GLDetailedDeviceStatus::DrawLEDs` at `0x10015aff8` reads a byte from each four-byte slot record and masks its low nibble at `0x10015b151..0x10015b166`. `DDUtils::SlotStatusPriority` at `0x1002ea7d4` uses the same mask. The UI reconstructs these five named selector states from slot `mStatus`; `mDiskState` remains separate. Other selectors stay unknown until their meaning is recovered. `SetLEDStatusColor` takes a separate aggregate color enum and must not substitute for the raw slot selector.
+
+The decoder accepts only canonical unsigned 32-bit decimal input, preserves the original low-nibble mask, and suppresses stale indicators. It reports LED colors rather than diagnosing the entire pack or asserting that physical LEDs are synchronized with animation phase. Only the exact 5D front-bay view currently uses this mapping. Original binary bytes, resources and disassembly remain ignored research inputs.
+
+The original field binding was traced end to end. `DroboDevice::Update` reads XML `mStatus` at `0x1002793cd..0x1002793dc`, passes its byte to the slot-model constructor at `0x1002796ca..0x1002796ed`, and stores it at model `+0x21`; `mDiskState` instead goes to `+0x22`. `StatusPresenter::UpdateStatus` loads `+0x21` at `0x100133288`, copies it into the first word of a 24-byte `SlotInfoStruct`, and assigns the vector to property `+0xeb8` at `0x1001333c9`. `GLDetailedDeviceStatus::Update` snapshots that property and copies each first `u32` into its four-byte status vector at `+0x2778` (`0x1001589e6..0x100158a0c`). `DrawLEDs` then applies the low-nibble selector. This establishes the XML field-to-color path without guessing from a healthy unit or synthetic fixture.

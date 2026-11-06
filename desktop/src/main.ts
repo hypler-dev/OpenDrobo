@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { analyzeCapacity, type CapacityObservation, type CapacityStatistics, type StatisticsRange } from "./statistics";
+import { resolveStatusSelection, statusUnitLabel } from "./status_selection";
+import { driveIndicator } from "./drive_indicator";
 import "./styles.css";
 
 type Section = "all" | "status" | "capacity" | "volumes" | "events" | "statistics" | "console" | "sharing" | "mcp" | "management" | "tools" | "settings" | "preferences" | "help";
@@ -373,6 +375,16 @@ async function call<T>(command: string, payload?: Record<string, unknown>): Prom
 
 function render(): void {
   const dashboardDomState = captureDashboardDomState();
+  if (selectedSection === "status" && poolStatus) {
+    const selection = resolveStatusSelection(poolStatus.pools.map((pool) => pool.id), selectedPoolId, selectedControlTargetId);
+    selectedControlTargetId = selection.controlTargetId;
+    if (selection.changed) {
+      clearPendingControl("Displayed Drobo changed; pending control confirmation was cancelled.");
+      selectedPoolId = selection.poolId;
+      selectedStatusView = "System Information";
+      selectedBaySlot = null;
+    }
+  }
   const consoleDomState = captureConsoleDomState();
   const eventsDomState = captureEventsDomState();
   const managementDomState = captureManagementDomState();
@@ -649,10 +661,10 @@ function statusPanel(content: HTMLElement): HTMLElement {
     content.append(stateCard("No device snapshot", "Read shared pool from All Drobos or Capacity to inspect reported model, unit presence, and slots.", "quiet"));
     return content;
   }
-  if (poolStatus.pools.length > 1 || selectedPoolId === null) content.append(poolSelector("status-pool"));
+  if (poolStatus.pools.length > 1) content.append(statusDevicePicker(poolStatus.pools));
   if (poolIsStale()) content.append(liveStatus("Device snapshot stale", poolStaleError ?? "The original-service snapshot is older than 30 seconds.", "quiet"));
   const pool = currentPool();
-  if (!pool) { content.append(stateCard("Selected pool unavailable", "Choose a reported pool from All Drobos.", "quiet")); return content; }
+  if (!pool) { content.append(stateCard("Choose a Drobo", "Select an enclosure above to view its system information.", "quiet")); return content; }
   const views: Array<typeof selectedStatusView> = ["System Information", "Drive Information"];
   const selector = element("div", "status-view-options");
   selector.append(segmentedControl("Device information views", views.map((name): [string, boolean, () => void] => [name, selectedStatusView === name, () => { selectedStatusView = name; render(); }])));
@@ -661,8 +673,34 @@ function statusPanel(content: HTMLElement): HTMLElement {
   else if (selectedStatusView === "Drive Information") details.append(driveInformation(pool));
   const enclosure = enclosureArtwork(pool, !poolIsStale());
   const layout = element("div", "status-workspace"); layout.append(details, enclosure);
-  content.append(selector, layout, textElement("p", "Cyan means observed presence. Neutral means inactive, stale, or unknown; it is not a health status.", "scope-note"));
+  content.append(selector, layout, textElement("p", isFiveD(pool) ? "Drive colors follow reported Drobo LED codes. Gray means unavailable or stale. Selection glow is separate from drive status." : "Reported slot presence is shown; LED decoding is not verified for this model.", "scope-note"));
   return content;
+}
+
+function statusDevicePicker(pools: PoolStatus[]): HTMLElement {
+  const picker = element("div", "status-device-picker");
+  picker.setAttribute("role", "group");
+  picker.setAttribute("aria-label", "Choose a Drobo for Status");
+  for (const pool of pools) {
+    const button = element("button", "status-device-choice glass");
+    button.type = "button";
+    button.id = `status-device-${encodeURIComponent(pool.id)}`;
+    button.setAttribute("aria-pressed", String(selectedPoolId === pool.id));
+    const label = displayDeviceLabel(pool.brand, pool.model);
+    const identity = statusUnitLabel(pool.id, pools.map((candidate) => candidate.id));
+    button.setAttribute("aria-label", `${label}, ${identity}`);
+    button.append(unitPortrait(pool, !poolIsStale()), textElement("strong", label), textElement("small", identity));
+    button.addEventListener("click", () => {
+      clearPendingControl("Displayed Drobo changed; pending control confirmation was cancelled.");
+      if (selectedPoolId !== pool.id) selectedControlTargetId = null;
+      selectedPoolId = pool.id;
+      selectedStatusView = "System Information";
+      selectedBaySlot = null;
+      render();
+    });
+    picker.append(button);
+  }
+  return picker;
 }
 
 function currentPool(): PoolStatus | null {
@@ -739,6 +777,7 @@ function driveInformation(pool: PoolStatus): HTMLElement {
   appendDefinition(list, "Capacity", formatPhysicalCapacity(selected.physicalCapacityBytes));
   appendDefinition(list, "SSD life", selected.ssdLifeRemainingPercent === null ? "Not reported" : `${selected.ssdLifeRemainingPercent}% remaining`);
   appendDefinition(list, "Presence", poolIsStale() ? "Unknown — last observation is stale" : observationStateCopy(selected.driveState));
+  if (isFiveD(pool) && selected.slot < 5) appendDefinition(list, "Drive indicator", driveIndicator(selected.rawStatus.mStatus, !poolIsStale()).label);
   if (cacheSlot(pool)?.slot === selected.slot) appendDefinition(list, "Cache usage", "Not reported");
   wrap.append(element("div", "panel-actions"), list);
   (wrap.firstElementChild as HTMLElement).append(previous, next);
@@ -791,10 +830,13 @@ function enclosureArtwork(pool: PoolStatus, fresh: boolean): HTMLElement {
     bay.style.setProperty("--bay-index", String(index));
     bay.disabled = !slot;
     bay.classList.toggle("present", Boolean(slot && fresh && slot.driveState === "active"));
+    const indicator = driveIndicator(slot?.rawStatus.mStatus, fresh);
+    bay.dataset.led = indicator.kind;
+    bay.title = indicator.label;
     const selected = selectedStatusView === "Drive Information" && slot?.slot === (selectedBaySlot ?? slots[0]?.slot);
     bay.classList.toggle("bay-selected", selected);
     bay.setAttribute("aria-pressed", String(selected));
-    bay.setAttribute("aria-label", `Drive ${index + 1}: ${fresh && slot ? observationStateCopy(slot.driveState) : "current presence unknown"}${slot?.manufacturerModel ? `, ${slot.manufacturerModel}` : ""}`);
+    bay.setAttribute("aria-label", `Drive ${index + 1}: ${indicator.label}; ${fresh && slot ? observationStateCopy(slot.driveState) : "current presence unknown"}${slot?.manufacturerModel ? `, ${slot.manufacturerModel}` : ""}`);
     bay.addEventListener("keydown", (event) => {
       if (!slot || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return;
       event.preventDefault();
@@ -812,7 +854,12 @@ function enclosureArtwork(pool: PoolStatus, fresh: boolean): HTMLElement {
   cacheButton.setAttribute("aria-pressed", String(selectedStatusView === "Drive Information" && selectedBaySlot === 5));
   cacheButton.disabled = !cache;
   stage.append(bays);
-  wrap.append(stage, cacheButton, textElement("p", "Select a drive to view its details.", "status-copy"));
+  const legend = element("div", "drive-led-legend");
+  legend.setAttribute("aria-label", "Drive indicator colors");
+  for (const [kind, label] of [["green", "Green"], ["amber", "Amber"], ["red", "Red"], ["protecting", "Green / amber"], ["red-flash", "Flashing red"], ["unknown", "Unknown"]]) {
+    const item = textElement("span", label); item.dataset.led = kind; legend.append(item);
+  }
+  wrap.append(stage, cacheButton, textElement("p", "Select a drive to view its details.", "status-copy"), legend);
   return wrap;
 }
 
@@ -2063,7 +2110,9 @@ function ledSettingsPanel(): HTMLElement {
   const setter = target?.controls.find((control) => control.action === "brightness");
   const reader = target?.controls.find((control) => control.action === "get-brightness");
   if (!target || !setter || !reader) {
-    panel.append(textElement("p", controlStatusLoading ? "Checking light-control availability…" : "Light controls are unavailable for the selected device.", "status-copy"));
+    const selectableTarget = controlStatus?.targets.some((candidate) => candidate.id === selectedPoolId);
+    panel.append(textElement("p", controlStatusLoading ? "Checking light-control availability…" : selectableTarget ? "Choose this device as the control target in Tools to use its light controls." : "Light controls are unavailable for the selected device.", "status-copy"));
+    if (selectableTarget) panel.append(actionButton("Choose control target in Tools", "secondary", () => selectSection("tools")));
     return panel;
   }
   const choice = ledChoice(target.id);

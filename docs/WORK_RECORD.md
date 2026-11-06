@@ -10,11 +10,15 @@ The MCP assessment covers the current desktop source and its host/service bounda
 
 The Codex Security managed scan (`7bef81a8-678a-43f7-a184-a3773956952c`) could not save canonical artifacts. Its tool repeatedly returned `Scan output parent must not be group- or world-writable without the sticky bit.` The authoritative output path has a `/Volumes/Storage` ancestor with mode `0775`; all scan descendants were private. No existing-scan relocation tool was available. Root did not change volume permissions, weaken plugin checks, or write replacement canonical artifacts. The scan was marked failed for this confirmed storage blocker; no sealed report or successful scan completion is claimed. The original candidate, generated model, and source validation were saved only through the tool's temporary artifact storage and may be cleaned by the OS. This is a source-backed assessment with an incomplete managed publication lane, not a clean security certification. No runtime exploit was performed. Token usage was not returned.
 
-The final source passes all 20 software-check lanes, including 41 desktop backend tests, nine statistics tests, 40 portable core tests, seven probe tests and 29 Python tests. Intel and ARM64 preview packages pass packaging checks. Ten SDK MCP tool calls pass against the final private Intel preview on the home Mac. The current runtime observations and remaining UI-input verification are recorded below. The original driver/service, Finder geometry, driver activation, filesystem mounts, live light/power tests and disk-pack mutation remain outside this packet.
+The latest source passes all 22 software-check lanes, including 41 desktop backend tests, nine statistics tests, six Status-selection tests, four drive-indicator tests, 40 portable core tests, seven probe tests and 29 Python tests. Intel and ARM64 preview packages pass packaging checks. Ten SDK MCP tool calls pass against the final private Intel preview on the home Mac. The current runtime observations and remaining UI-input verification are recorded below. The original driver/service, Finder geometry, driver activation, filesystem mounts, live light/power tests and disk-pack mutation remain outside this packet.
 
 The user subsequently accepted optional MCP and requested more elaborate statistics plus a firmware-grounded feature assessment and an explanation of macOS software RAID. Extend Statistics with actual time-range selection, protected/free/OS-used trends, utilization and signed changes, observation gaps, reported drive capacities and SSD life, and session-scoped activity. Byte arithmetic must remain exact, missing observations must not become zero or an outage, and growth rates must be described as observed averages rather than forecasts. Additional telemetry command names are research leads until their payloads, units and model capability are recovered. Neither original firmware nor the BeyondRAID on-disk format has been modified. No AppleRAID conversion, member-disk passthrough, formatting or array migration is authorized by this assessment. The follow-up question about connecting two matching Drobos is an architecture assessment: Thunderbolt chaining is connectivity, while a potential host-managed mirror or stripe would retain two separate onboard BeyondRAID pools. OpenDrobo has not implemented or validated this arrangement; virtual-member ancestry, mount guards, thin-provisioned capacity and failure recovery remain open. See [firmware capabilities](FIRMWARE_CAPABILITIES.md).
 
 The user then identified the stretched Status selector in the current home-Mac view and requested visible options, better organization and device-specific settings. Replace that dropdown with visible System/Drive choices, remove the collapsed Advanced navigation group, and show only verified settings for the explicitly selected device. Remove irrelevant NAS forms from the 5D flow and retain native host Sharing as a separate page. Raw logical geometry remains closed technical detail, as previously requested.
+
+The next accepted Status amendment automatically opens the sole observed Drobo; with multiple units it presents enclosure icons and opens System Information for the selected identity. Selection is read-only: automatic display changes must not grant a control target, and device disappearance clears any prior control authority. Multiple identical models need distinct opaque unit labels. The user authorized briefly resuming Screen Sharing control to verify the interface. Device actions remain outside the home test.
+
+The user also requested original-style green/amber/red enclosure indicators. Recover the original per-slot LED selector before applying colors; keep unknown or stale observations gray, expose color-independent text, and leave physical lights unchanged. This amendment does not decode every health bit or authorize device-control execution.
 
 ## Accepted intent
 
@@ -194,8 +198,8 @@ Add stronger SDK-service backend mocks for drain/source cancellation and partial
 ```text
 Repo: OpenDrobo; start with pwd, git branch --show-current, git rev-parse HEAD, git status --short --branch.
 Read: README.md -> docs/WORK_RECORD.md latest packet and final evidence -> docs/DEVELOPER_GUIDE.md -> docs/MANAGEMENT_FEATURES.md -> docs/FIRMWARE_CAPABILITIES.md -> task-specific research notes.
-Truth: Shared macOS14+ app; private Intel home preview; one 5D Thunderbolt pool, two HFS+ LUNs, five HDDs plus mSATA cache; protected capacity separate from logical ceiling. All20 checks and both Mac packages pass; original driver/service still required; FSKit inactive, Finder unchanged.
-Scope: finish final UI receipt/source publication; then bounded telemetry schema recovery, local-service identity attestation and named spare-unit validation. Two-enclosure host RAID is an assessment only, not supported or provisioned.
+Truth: Shared macOS14+ app; final96bb private Intel bundle delivered/CLI-tested, GUI still8a4 after computer-use removal; one 5D Thunderbolt pool, two HFS+ LUNs, five HDDs plus mSATA cache; protected capacity separate from logical ceiling. All22 checks and both Mac packages pass; original driver/service still required; FSKit inactive, Finder unchanged.
+Scope: finish final96bb GUI launch, green LED render, fresh-start Status and minimum-window evidence when computer-use returns; then bounded telemetry schema recovery, local-service identity attestation and named spare-unit validation. Two-enclosure host RAID is an assessment only, not supported or provisioned.
 Do not: expand home access beyond read-only OpenDrobo trial; alter unrelated services/ACLs/exports, activate drivers/extensions, mount, flash, format, erase, mutate arrays, execute light/power commands on the home data pack, or publish vendor assets/private receipts.
 Validate: make check after relevant source changes; exact target package/signature and read-only home smoke; fresh source/UI review. Hardware activation and host RAID require separately identified spare hardware and an accepted write plan.
 Ledger: docs/WORK_RECORD.md; ignored artifacts/reports/home-capacity/home-reference/; https://github.com/hypler-dev/OpenDrobo.
@@ -213,7 +217,7 @@ The user's latest steering removes non-Drobo local volumes from the app, request
 
 Implement Drobo-only mounted-volume and share scope using verified native provider bindings. Capacity history may store only opaque pool references, bounded model labels, timestamps and aggregate byte counters in private local state. It must not invent earlier readings, treat missing log data as zero, reinterpret an OS logical ceiling as usable capacity, or feed historical samples into Finder's live-statistics path. Checked original-log locations on the home Mac contained no usable capacity time series; this bounded inspection does not prove that no other vendor logs exist.
 
-## Final management and statistics evidence
+## Management and statistics checkpoint b50f377
 
 This packet starts from `8b3fc8a964b6783320bbf6b6d7b63d388bd91204` on `main`. It combines the original-service observer, unit/LUN deduplication, Drobo-only volumes/sharing metadata, bounded history/events/Console, optional read-only MCP, fixed GUI control availability, original-style enclosure/drive graphics, model-focused navigation/settings and product/developer documentation. The final navigation amendment removes the stretched Status dropdown and unrelated NAS configuration forms. Current component choices are System Information and Drive Information. All 14 pages are visible in Device, Activity, and Host & application groups. Only the exact selected 5D profile presents Dim Lights; unknown models receive an unavailable-profile state. Original name/redundancy/spindown/NAS setting contracts remain unimplemented.
 
@@ -230,7 +234,7 @@ Home-Mac evidence is a private Intel macOS 14.7.7 trial, not a public binary rel
 
 The final bundle passes all **10 SDK MCP tool calls**, with matched JSON text/structured output, Drobo-only mounted volumes, one shared pool, device/drive display metadata, retained capacity history and mounted-volume power guards. Restart, shutdown and standby remain disabled while the Drobo volumes are mounted. The original DDService process/path remained unchanged across checks. No agent light, brightness, power, firmware, disk-pack or array command was sent. The agent did not change host sharing services, exports or permissions.
 
-The prior `90d1eb55905d` private preview provided direct home-screen observations of the protected-capacity pie, working Drive 3/cache selection, firmware/model data, SSD 96% life, six statistics cards, signed-change/utilization charts, real observation gaps and installed-drive capacities. Its Statistics view showed 27 real readings over 4 hr 30 min; those values describe that observation, not a permanent fixture. The final `53db3d58f8ac` preview was launched from its verified Finder directory and visibly shows all 14 navigation pages at 1120 × 800. Final Status/Settings interaction verification is pending because Screen Sharing's Control Screen mode was switched off; the agent requested the user's choice before restoring it. No complete VoiceOver, performance, minimum-window or runtime accessibility-preference audit is claimed.
+The prior `90d1eb55905d` private preview provided direct home-screen observations of the protected-capacity pie, working Drive 3/cache selection, firmware/model data, SSD 96% life, six statistics cards, signed-change/utilization charts, real observation gaps and installed-drive capacities. Its Statistics view showed 27 real readings over 4 hr 30 min; those values describe that observation, not a permanent fixture. The final `53db3d58f8ac` preview was launched from its verified Finder directory and visibly shows all 14 navigation pages at 1120 × 800. At that checkpoint, Status/Settings interaction verification remained pending because Screen Sharing's Control Screen mode was switched off; the subsequent follow-up below records the resumed test. No complete VoiceOver, performance, minimum-window or runtime accessibility-preference audit is claimed.
 
 Fresh independent source reviews `statistics_ui_review` and `native_review` returned PASS for the final navigation/settings/statistics and documentation deltas. Statistics parser and robustness reviews also passed after invalid-type/oversized-value guards were added. Earlier source reviews covered native service/control binding, private-file boundaries, MCP framing and optional-artwork packaging; final UI edits did not change those backends. Root is the integration/build/host-test producer; `statistics_engine` used `gpt_worker`, statistics math reviewers used `gpt_reviewer`, UI review used `gpt_ui_review`, and documentation review used `gpt_reviewer`. These native roles are OpenAI, with configured `gpt-5.6-terra` pins. Earlier bounded reader/documentation roles use configured `gpt-5.6-luna`. Runtime model IDs are not exposed, so no observed-model match or token/cost saving is claimed. No GLM, Spark or retired local-model lane was used.
 
@@ -278,4 +282,41 @@ scripts/build_desktop.py
 scripts/build_pool_probe.py
 scripts/check_desktop.py
 tests/test_desktop_artwork.py
+```
+
+## Status selection and drive-indicator follow-up
+
+Accepted source base: `b50f377536cfd31cbe14756337f742e9852d6de5`, `main`. Status automatically displays the sole observed pool. Multiple pools remain an explicit choice through enclosure icons; selecting one opens System Information. Previously selected surviving identities remain stable. Unit labels expand opaque suffixes to resolve collisions, including identical models. Automatic display changes never grant a control target; changing/disappearing units clear control authority and pending confirmation. Settings explains selecting a matching target in Tools when needed.
+
+The 5D front-bay artwork now renders reported green, amber, solid red, alternating green/amber and flashing red indicators. The decoder follows the original named SlotStatus constants and low-nibble rendering mask, not physical-capacity presence or `mDiskState`. Unknown selectors, malformed/overflow values and stale observations stay gray. Titles, ARIA labels, detail text and a legend carry color-independent descriptions. Flashing is low frequency and suppressed under Reduce Motion. This is a recovered indicator selector, not a complete health decoder or a command to the physical LEDs. [Management ABI](../research/MACOS_MANAGEMENT_ABI.md#dashboard-per-slot-led-rendering) records the pinned binary hash, enum addresses and complete XML/model/presenter/render path.
+
+Validation:
+
+- `make check`: **22/22 lanes PASS**, including six Status-selection/identity-label tests, four LED-decoder tests and the unchanged nine statistics/41 backend/40 core/seven probe/29 Python test suites.
+- Intel and ARM64 preview package builds PASS; all 112 runtime source hashes match the validated package inputs.
+- Final Intel archive SHA-256: `96bb203411c68c6980695b3ba7b8ca997e84860863565936e52c3108a61bdbb5`.
+- Final ARM64 archive SHA-256: `dfce2e57bf6454d5c113a5935e294f49f0141934ba56b5dda8421ec0ac3c91c9`.
+- Final private home bundle: `/Users/jeff/Applications/OpenDroboTrials/20261105-96bb203411c6/OpenDrobo.app`. Strict signature/Intel architecture/no-extension checks PASS. All eight bounded read-only CLI modes and all ten SDK MCP tools PASS against this bundle. One physical enclosure, one pool, two HFS+ volumes and six slots remain distinct; the final CLI receipt retained 44 genuine observations.
+- The original DDService PID/path remained unchanged. No agent light/brightness/power, firmware, array, driver activation, filesystem mount or disk-pack write occurred.
+
+Home GUI evidence is limited. The preceding `8a4ff11431e7` preview visibly rendered System Information, compact System/Drive buttons, front bays and 5D-only Dim Lights settings, with current brightness not read and Apply disabled until a choice. All 14 navigation pages remained visible. Navigation/window changes also occurred outside automation, so a controlled fresh-start single-unit interaction is not claimed. The computer-use tool was then removed during the turn, before the final `96bb203411c6` LED bundle could be launched. No alternate UI automation was used. Final process readback still shows the preceding `8a4ff11431e7` GUI. Final green-LED render, minimum-window sizing and controlled fresh-start interaction remain pending. Multi-enclosure rendering and real fault/protection/stale hardware transitions were not tested; offline selection/decoder cases and independent source review cover those contracts. Screen Sharing mode could not be restored through the removed tool.
+
+Fresh `statistics_ui_review` (`gpt_ui_review`, OpenAI, configured `gpt-5.6-terra`) returned PASS after collision-safe labels were added. Fresh `native_review` (`gpt_reviewer`, same configured provider/model) passed the LED decoder, UI labels, stale/unknown behavior, animation and accessibility rules. `led_semantics` (`gpt_reader`, OpenAI, configured `gpt-5.6-luna`) independently verified the named constants and the complete XML `mStatus` to rendered slot-buffer binding. Root owns integration, package validation and host receipts. Runtime model IDs are not exposed; these are configuration pins. No GLM/Spark or retired model lane was used.
+
+Receipts remain ignored under `artifacts/reports/home-capacity/home-status-selection/`: `validation.json`, `home-runtime.json`, `mcp-home-smoke.json`, `home-ui-observations.json`, check/build logs and bounded original-binary disassembly in `led-recovery/`. The earlier pre-LED runtime/SDK receipts have separate filenames. The loopback authenticity finding and managed-report storage failure remain unresolved; this UI follow-up changes neither boundary. Original firmware, DriverKit hardware gates, FSKit activation and Finder geometry remain unchanged. No public binary release or tag was created.
+
+This containing commit identifies the follow-up source checkpoint; public-main equality is checked during authorized publication. No unrelated dirt was present. Exact source paths (11):
+
+```text
+desktop/src/drive_indicator.ts
+desktop/src/main.ts
+desktop/src/status_selection.ts
+desktop/src/styles.css
+desktop/tests/drive_indicator.test.mjs
+desktop/tests/status_selection.test.mjs
+docs/DEVELOPER_GUIDE.md
+docs/MANAGEMENT_FEATURES.md
+docs/WORK_RECORD.md
+research/MACOS_MANAGEMENT_ABI.md
+scripts/check_desktop.py
 ```
