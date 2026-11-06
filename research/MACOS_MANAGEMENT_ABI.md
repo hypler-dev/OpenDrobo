@@ -119,6 +119,6 @@ The per-slot selector now drives All Drobos thumbnails and Status using the same
 | Flashing red | Drive fault | Review the bay for failure or an incompatible drive and replacement |
 | Gray | Missing, unsupported or stale indicator | Refresh before assessing the bay |
 
-The interface preserves these physical color families while adding distinct static legend symbols, steady/flashing descriptions and guidance. Fault indicators use a dashed outline; unavailable indicators are hollow. Reduce Motion retains a two-color protection cue and a fault outline rather than relying on blinking. These are presentation aids, not additional decoded error codes.
+The interface preserves these physical color families with slim matching bar swatches, steady/flashing labels and full guidance in their tooltips. Fault indicators use a dashed outline; unavailable indicators are hollow. Reduce Motion retains a two-color protection cue and a fault outline rather than relying on blinking. These are presentation aids, not additional decoded error codes.
 
 No activity, capacity-gauge or physical power LED is fabricated from allocation percentages. Inventory card text names affected bays, and missing records never become ready. Real fault transitions remain untested on the home data pack.

@@ -1,9 +1,9 @@
-/** Display transport only where the service's reviewed 5D profile establishes it. */
-export function deviceLabel(brand: string, model: string, connectionType?: number): string {
+/** Keep transport metadata separate from the displayed enclosure name. */
+export function deviceLabel(brand: string, model: string, _connectionType?: number): string {
   const cleanBrand = brand.trim();
   const cleanModel = model.trim();
   const label = cleanBrand && cleanModel.toLowerCase().startsWith(cleanBrand.toLowerCase()) ? cleanModel : [cleanBrand, cleanModel].filter(Boolean).join(" ") || "Drobo";
-  return connectionType === 6 && (cleanModel === "Drobo 5D" || cleanModel === "5D") ? `${label} - TB` : label;
+  return label.replace(/ - TB$/i, "");
 }
 
 export interface VolumeIdentity {
@@ -23,7 +23,7 @@ export function groupDroboVolumes<T extends VolumeIdentity>(volumes: readonly T[
     const key = enclosure ? `enclosure:${enclosure}` : `unbound:${volume.id}`;
     let group = groups.get(key);
     if (!group) {
-      group = { key, name: volume.deviceName?.trim() || "Drobo enclosure", bound: Boolean(enclosure), volumes: [] };
+      group = { key, name: deviceLabel("", volume.deviceName?.trim() || "Drobo enclosure"), bound: Boolean(enclosure), volumes: [] };
       groups.set(key, group);
     }
     group.volumes.push(volume);

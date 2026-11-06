@@ -50,14 +50,14 @@ function startup() {
   };
 }
 
-test("ready shell dismisses startup after a bounded visible interval without hardware", () => {
+test("ready shell dismisses startup after three visible seconds without hardware", () => {
   const view = startup();
   view.api.dismissWhenReady();
   view.advance(15);
   assert.equal(view.dismissed(), false);
-  view.advance(731);
+  view.advance(3031);
   assert.equal(view.dismissed(), false);
-  view.advance(732);
+  view.advance(3032);
   assert.equal(view.dismissed(), true);
   view.advance(5000);
   assert.equal(view.error.hidden, true);
@@ -82,7 +82,7 @@ test("failed startup exposes persistent recovery screen and dismisses overlay", 
 test("later application errors do not revive the startup failure screen", () => {
   const view = startup();
   view.api.dismissWhenReady();
-  view.advance(732);
+  view.advance(3032);
   view.emit("error");
   view.emit("unhandledrejection");
   view.advance(5000);

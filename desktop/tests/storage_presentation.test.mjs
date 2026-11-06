@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { deviceLabel, groupDroboVolumes, usageAccounting, installedCapacity } from '../src/storage_presentation.ts';
 
-test('5D Thunderbolt label preserves model and transport without an invented unit number', () => {
-  assert.equal(deviceLabel('Drobo', 'Drobo 5D', 6), 'Drobo 5D - TB');
-  assert.equal(deviceLabel('Drobo', '5D', 6), 'Drobo 5D - TB');
-  assert.equal(deviceLabel('Drobo', 'Drobo 5D - TB', 6), 'Drobo 5D - TB');
+test('display names preserve the model without a transport suffix or invented unit number', () => {
+  assert.equal(deviceLabel('Drobo', 'Drobo 5D', 6), 'Drobo 5D');
+  assert.equal(deviceLabel('Drobo', '5D', 6), 'Drobo 5D');
+  assert.equal(deviceLabel('Drobo', 'Drobo 5D - TB', 6), 'Drobo 5D');
   assert.equal(deviceLabel('Drobo', 'Drobo 5D', 1), 'Drobo 5D');
   assert.equal(deviceLabel('Drobo', 'Drobo 5N', 6), 'Drobo 5N');
 });
@@ -19,7 +19,8 @@ test('both LUNs group by physical ancestry even with different driver endpoints'
   ];
   const groups = groupDroboVolumes(volumes);
   assert.deepEqual(groups.map((group) => group.volumes.map((volume) => volume.id)), [['a', 'b'], ['c']]);
-  assert.equal(groups[0].name, 'Drobo 5D - TB');
+  assert.equal(groups[0].name, 'Drobo 5D');
+  assert.equal(volumes[0].deviceName, 'Drobo 5D - TB');
 });
 
 test('missing ancestry never merges volumes by name or assumes one enclosure', () => {

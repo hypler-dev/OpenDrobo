@@ -41,7 +41,7 @@
     if (errorShell) errorShell.hidden = true;
     // Allow the branded overlay to paint before starting its visible interval.
     window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => window.setTimeout(dismiss, 700));
+      window.requestAnimationFrame(() => window.setTimeout(dismiss, 3000));
     });
   };
 

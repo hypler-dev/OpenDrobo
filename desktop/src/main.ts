@@ -360,6 +360,7 @@ let autoUpdateChecks = localStorage.getItem("opendrobo.autoUpdateChecks") === "t
 let viewMode: "icons" | "list" = "icons";
 let requestGeneration = 0;
 let capacityRequestSequence = 0;
+let capacityGradientSequence = 0;
 let updateRequestSequence = 0;
 let capacityExpiryTimer: number | null = null;
 let focusAfterNavigation = false;
@@ -848,18 +849,10 @@ function enclosureArtwork(pool: PoolStatus, fresh: boolean): HTMLElement {
   stage.append(bays);
   const legend = element("div", "drive-led-legend");
   legend.setAttribute("aria-label", "Drive indicator meanings");
-  const cues = {
-    green: "Steady · No bay action",
-    amber: "Steady · Add space soon",
-    red: "Steady · Add space now",
-    protecting: "Alternating · Keep drives installed",
-    "red-flash": "Flashing · Check this drive",
-    unknown: "Refresh to check",
-  };
   for (const kind of ["green", "amber", "red", "protecting", "red-flash", "unknown"] as const) {
     const meaning = DRIVE_INDICATOR_MEANINGS[kind];
     const item = element("span", "drive-led-key"); item.title = meaning.label; item.dataset.led = kind;
-    item.append(textElement("strong", meaning.summary), textElement("small", cues[kind]));
+    item.textContent = meaning.summary + (kind === "red" ? " (steady)" : kind === "red-flash" ? " (flashing)" : "");
     legend.append(item);
   }
   wrap.append(stage, cacheButton, textElement("p", "Select a drive to view its details.", "status-copy"), legend);
@@ -1346,8 +1339,8 @@ function capacityHistoryPanel(): HTMLElement {
   }
   const last = summary.last;
   const cards = element("div", "statistics-metrics");
-  cards.append(statisticCard("Protected used", formatDecimalBytes(last.usedBytes), `${((summary.utilizationBasisPoints ?? 0) / 100).toFixed(2)}% utilized`),
-    statisticCard("Protected free", formatDecimalBytes(last.freeBytes), `Usable total ${formatDecimalBytes(last.totalBytes)}`),
+  cards.append(statisticCard("Used space", formatDecimalBytes(last.usedBytes), `${((summary.utilizationBasisPoints ?? 0) / 100).toFixed(2)}% utilized`),
+    statisticCard("Free space", formatDecimalBytes(last.freeBytes), `Usable total ${formatDecimalBytes(last.totalBytes)}`),
     statisticCard("OS filesystem used", formatDecimalBytes(last.osUsedBytes), "Separate filesystem accounting"),
     statisticCard("Used-space change", signedBytes(summary.usedDeltaBytes), "Across the selected observations"),
     statisticCard("Observed average change", summary.averageDailyChangeBytes === null ? "Insufficient history" : `${signedBytes(summary.averageDailyChangeBytes)} / day`, summary.capacityChanged ? "Capacity changed during this range" : "Allocation change; not transfer speed or a forecast"),
@@ -1357,12 +1350,12 @@ function capacityHistoryPanel(): HTMLElement {
   else {
     const charts = element("div", "statistics-charts");
     const space = element("section", "statistics-chart-card glass");
-    const metrics: Array<[typeof statisticsMetric, string]> = [["used", "Protected used"], ["free", "Protected free"], ["os", "OS used"]];
+    const metrics: Array<[typeof statisticsMetric, string]> = [["used", "Used space"], ["free", "Free space"], ["os", "OS used"]];
     space.append(textElement("h3", "Space over time", "card-heading"), segmentedControl("Space chart metric", metrics.map(([key, label]): [string, boolean, () => void] => [label, statisticsMetric === key, () => { statisticsMetric = key; render(); }])), statisticsChart(summary, statisticsMetric));
     const change = element("section", "statistics-chart-card glass");
-    change.append(textElement("h3", "Change in protected usage", "card-heading"), textElement("p", "Difference from the first reading in this range.", "status-copy"), statisticsChart(summary, "change"));
+    change.append(textElement("h3", "Change in used space", "card-heading"), textElement("p", "Difference from the first reading in this range.", "status-copy"), statisticsChart(summary, "change"));
     const utilization = element("section", "statistics-chart-card glass");
-    utilization.append(textElement("h3", "Pool utilization", "card-heading"), textElement("p", "Protected used space as a share of usable capacity.", "status-copy"), statisticsChart(summary, "utilization"));
+    utilization.append(textElement("h3", "Storage utilization", "card-heading"), textElement("p", "Used space as a share of usable capacity.", "status-copy"), statisticsChart(summary, "utilization"));
     charts.append(space, change, utilization);
     panel.append(charts);
   }
@@ -1461,7 +1454,7 @@ function statisticsObservations(samples: readonly CapacityObservation[]): HTMLEl
   details.append(textElement("summary", "Recorded observations · newest 50"));
   const wrap = element("div", "statistics-table-scroll");
   const table = element("table", "storage-table");
-  table.append(tableHeader(["Time", "Protected used", "Protected free", "OS used"]));
+  table.append(tableHeader(["Time", "Used space", "Free space", "OS used"]));
   const body = element("tbody");
   for (const sample of [...samples].reverse().slice(0, 50)) {
     const row = element("tr");
@@ -1973,12 +1966,12 @@ function capacityWorkspace(pool: PoolStatus, stale: boolean): HTMLElement {
     usage.append(textElement("h3", stale ? "Last reported space usage" : "Space usage"));
     if (accounting) {
       const metrics = element("dl", "usage-metrics");
-      appendDefinition(metrics, "Used in protected pool", formatDecimalBytes(accounting.used));
-      appendDefinition(metrics, "Available in protected pool", formatDecimalBytes(accounting.free));
+      appendDefinition(metrics, "Used space", formatDecimalBytes(accounting.used));
+      appendDefinition(metrics, "Available space", formatDecimalBytes(accounting.free));
       appendDefinition(metrics, "Total usable capacity", formatDecimalBytes(accounting.total));
-      usage.append(metrics, capacityDonutValues("Protected pool space usage", accounting.total, accounting.used, accounting.free));
-    } else usage.append(textElement("p", "Protected usage is unavailable: the reported accounting is inconsistent.", "status-copy"));
-    usage.append(textElement("p", `OS filesystem used: ${formatDecimalBytes(pool.osUsedBytes)}. Filesystem usage and pool allocation are measured separately.`, "status-copy"));
+      usage.append(metrics, capacityDonutValues("Storage usage", accounting.total, accounting.used, accounting.free));
+    } else usage.append(textElement("p", "Used space is unavailable because the reported measurements do not agree.", "status-copy"));
+    usage.append(textElement("p", `Used by macOS: ${formatDecimalBytes(pool.osUsedBytes)}. Drobo and macOS measure used space differently.`, "status-copy"));
     const hardware = element("section", "cache-summary");
     hardware.append(textElement("h3", "Installed drives", "card-heading"), textElement("p", installed ? `${formatDecimalBytes(installed.bytes)} raw capacity across ${installed.populated} data drives. This is not usable space.` : "Installed drive capacity is unavailable or incomplete.", "status-copy"));
     const ssd = cacheSlot(pool);
@@ -1986,14 +1979,14 @@ function capacityWorkspace(pool: PoolStatus, stale: boolean): HTMLElement {
     workspace.append(usage, hardware); return workspace;
   }
   if (!accounting) {
-    workspace.append(stateCard("Protected capacity unavailable", "The reported protected total, used, and free values are inconsistent. No capacity chart is shown.", "quiet"));
+    workspace.append(stateCard("Storage capacity unavailable", "The reported total, used and free space do not agree. No capacity chart is shown.", "quiet"));
     return workspace;
   }
   const { total, used, free } = accounting;
-  const donut = capacityDonutValues("Protected pool capacity", total, used, free);
+  const donut = capacityDonutValues("Storage capacity", total, used, free);
   const legend = element("div", "capacity-legend");
   for (const [name, value] of [["Used", used], ["Free", free], ["Total", total]]) legend.append(textElement("span", `${name}: ${formatDecimalBytes(value)}`));
-  const right = element("div", "capacity-right"); right.append(textElement("h3", stale ? "Last reported protected pool capacity" : "Protected pool capacity"), donut, legend, textElement("p", `OS filesystem used: ${formatDecimalBytes(pool.osUsedBytes)}. OS usage and protected pool allocation are separate measurements.`, "status-copy"));
+  const right = element("div", "capacity-right"); right.append(textElement("h3", stale ? "Last reported storage capacity" : "Storage capacity"), donut, legend, textElement("p", `Used by macOS: ${formatDecimalBytes(pool.osUsedBytes)}. Drobo and macOS measure used space differently.`, "status-copy"));
   const cache = element("section", "cache-summary");
   const ssd = cacheSlot(pool);
   cache.append(textElement("h3", "SSD cache", "card-heading"), textElement("p", ssd ? `Capacity: ${formatPhysicalCapacity(ssd.physicalCapacityBytes)}. Life: ${ssd.ssdLifeRemainingPercent === null ? "Not reported" : `${ssd.ssdLifeRemainingPercent}% remaining`}. Usage: Unavailable.` : "No SSD cache reported. Usage: Unavailable.", "status-copy"));
@@ -2005,7 +1998,25 @@ function capacityDonutValues(label: string, total: string, used: string, free: s
   const block = element("section", "capacity-donut capacity-donut-large");
   const ratio = byteRatio(used, total); const circumference = 2 * Math.PI * 42;
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("viewBox", "0 0 110 110"); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", `${label}: used ${formatDecimalBytes(used)}, free ${formatDecimalBytes(free)}, total ${formatDecimalBytes(total)}.`);
-  for (const [className, dash] of [["donut-free", null], ["donut-used", `${(circumference * ratio).toFixed(2)} ${circumference.toFixed(2)}`]] as const) { const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle"); circle.setAttribute("cx", "55"); circle.setAttribute("cy", "55"); circle.setAttribute("r", "42"); circle.setAttribute("class", className); if (dash) circle.setAttribute("stroke-dasharray", dash); svg.append(circle); }
+  const gradientId = `capacity-rgb-${++capacityGradientSequence}`;
+  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+  gradient.id = gradientId;
+  gradient.setAttribute("gradientUnits", "userSpaceOnUse");
+  for (const [name, value] of [["x1", "97"], ["y1", "55"], ["x2", "13"], ["y2", "55"]]) gradient.setAttribute(name, value);
+  for (const [offset, color] of [["0%", "#36edc0"], ["30%", "#43dbff"], ["60%", "#8a6aff"], ["100%", "#ff5cba"]]) {
+    const stop = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+    stop.setAttribute("offset", offset); stop.setAttribute("stop-color", color); gradient.append(stop);
+  }
+  defs.append(gradient); svg.append(defs);
+  block.style.setProperty("--capacity-arc-paint", `url(#${gradientId})`);
+  for (const [className, dash] of [["donut-free", null], ["donut-used", `${(circumference * ratio).toFixed(2)} ${circumference.toFixed(2)}`]] as const) {
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", "55"); circle.setAttribute("cy", "55"); circle.setAttribute("r", "42"); circle.setAttribute("class", className);
+    if (dash) circle.setAttribute("stroke-dasharray", dash);
+    if (className === "donut-used" && ratio === 0) circle.setAttribute("visibility", "hidden");
+    svg.append(circle);
+  }
   const center = element("div", "donut-center");
   center.append(textElement("strong", formatDecimalBytes(total)), textElement("span", "Usable capacity"));
   block.append(svg, center); return block;
